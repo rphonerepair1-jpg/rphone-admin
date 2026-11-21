@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#030708"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>R-Phone Servis</title>
+<link rel="manifest" href="manifest.webmanifest"/>
+<link rel="icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;700&display=swap"/>
+<style>
+:root{
+ color-scheme:dark;
+ --bg:#030708;--panel:#071410;--panel2:#0a1c16;--ink:#e3f4ec;--muted:#7f9b8e;
+ --g:#2dffa0;--g2:#19c985;--on-g:#021510;--gl:45,255,160;
+ --amber:#ffb454;--red:#ff5f57;--line:rgba(45,255,160,.16);--line2:rgba(45,255,160,.42);
+ --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+ --sans:Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+@media(prefers-color-scheme:light){:root{
+ color-scheme:light;--bg:#eef5f1;--panel:#fff;--panel2:#f4faf6;--ink:#10281d;--muted:#52695d;
+ --g:#067a4b;--g2:#0b9560;--on-g:#fff;--gl:6,122,75;--amber:#a05200;--red:#c62828;
+ --line:rgba(6,122,75,.18);--line2:rgba(6,122,75,.45)}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans);-webkit-tap-highlight-color:transparent}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+[hidden]{display:none!important}
+.wrap{width:min(960px,100%);margin:0 auto;padding:0 16px}
+
+/* login */
+#login{min-height:100dvh;display:grid;place-items:center;padding:24px 16px}
+.lbox{width:min(380px,100%);padding:26px 22px;border:1px solid var(--line2);border-radius:16px;background:var(--panel)}
+.lbox h1{margin:0 0 4px;font:700 1.25rem var(--mono)}
+.lbox p{margin:0 0 18px;color:var(--muted);font-size:.9rem}
+
+/* form */
+label{display:block;margin:0 0 5px;color:var(--muted);font-size:.8rem}
+.f{margin:0 0 14px}
+input,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);outline:none}
+input:focus,textarea:focus{border-color:var(--g)}
+textarea{min-height:76px;resize:vertical}
+.chk{display:flex;align-items:center;gap:8px;margin:0 0 16px;color:var(--muted);font-size:.85rem}
+.chk input{width:auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border:1px solid var(--line2);border-radius:10px;background:transparent;color:var(--g);font:700 .85rem var(--mono)}
+.btn.main{background:var(--g);border-color:var(--g);color:var(--on-g)}
+.btn.warn{color:var(--red);border-color:rgba(255,95,87,.45)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.full{width:100%}
+.err{min-height:1.3em;margin:10px 0 0;color:var(--red);font-size:.85rem}
+
+/* app bar */
+header.bar{position:sticky;top:0;z-index:10;padding:calc(10px + env(safe-area-inset-top)) 0 10px;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar .row{display:flex;align-items:center;gap:10px}
+.bar h1{margin:0;font:700 1.05rem var(--mono);flex:1}
+.bar h1 small{color:var(--muted);font-weight:500;margin-left:6px}
+.ib{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--g)}
+.ib.spin svg{animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.ib svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.search{margin:10px 0 0}
+.chips{display:flex;gap:8px;margin:10px 0 0;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;padding:7px 13px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--muted);font-size:.8rem}
+.chip.on{border-color:var(--g);background:rgba(var(--gl),.12);color:var(--g)}
+#net{margin:8px 0 0;padding:6px 10px;border-radius:8px;background:rgba(255,180,84,.12);color:var(--amber);font-size:.8rem}
+
+/* list */
+#list{display:grid;gap:10px;padding:14px 0 110px}
+@media(min-width:720px){#list{grid-template-columns:1fr 1fr}}
+.card{width:100%;text-align:left;padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.card:hover{border-color:var(--line2)}
+.card .t{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:0 0 4px}
+.card .id{font:700 .8rem var(--mono);color:var(--g)}
+.card .n{font-weight:700}
+.card .d{color:var(--muted);font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .u{margin-top:6px;color:var(--muted);font-size:.75rem}
+.badge{padding:3px 9px;border-radius:999px;border:1px solid var(--line);font-size:.72rem;white-space:nowrap}
+.s-done{color:var(--g);border-color:var(--line2);background:rgba(var(--gl),.1)}
+.s-work{color:var(--amber);border-color:rgba(255,180,84,.45);background:rgba(255,180,84,.1)}
+.s-bad{color:var(--red);border-color:rgba(255,95,87,.45);background:rgba(255,95,87,.1)}
+.s-new{color:var(--ink)}
+.empty{grid-column:1/-1;padding:34px 10px;text-align:center;color:var(--muted)}
+#fab{position:fixed;right:max(16px,calc(50% - 464px));bottom:calc(18px + env(safe-area-inset-bottom));z-index:12;min-height:52px;padding:0 20px;border:0;border-radius:14px;background:var(--g);color:var(--on-g);font:700 .9rem var(--mono);box-shadow:0 10px 26px -8px rgba(var(--gl),.55)}
+
+/* sheet */
+#ov{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.6)}
+@media(min-width:720px){#ov{align-items:center}}
+.sheet{width:min(560px,100%);max-height:92dvh;overflow:auto;padding:20px 18px calc(20px + env(safe-area-inset-bottom));border:1px solid var(--line2);border-radius:18px 18px 0 0;background:var(--panel);animation:up .22s ease-out}
+@media(min-width:720px){.sheet{border-radius:18px}}
+@keyframes up{from{transform:translateY(24px);opacity:0}}
+@media(prefers-reduced-motion:reduce){.sheet{animation:none}.ib.spin svg{animation:none}}
+.sheet h2{margin:0 0 14px;font:700 1.05rem var(--mono)}
+.sheet h2 span{color:var(--g)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:420px){.two{grid-template-columns:1fr}}
+.sts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.acts .btn{flex:1 1 140px}
+.done{text-align:center;padding:8px 0}
+.done .big{margin:10px 0;font:700 2rem var(--mono);color:var(--g)}
+.done p{margin:0 0 16px;color:var(--muted)}
+#toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;max-width:90%;padding:10px 16px;border-radius:10px;background:var(--g);color:var(--on-g);font-size:.85rem;font-weight:500}
+#toast.bad{background:var(--red);color:#fff}
+</style>
+</head>
+<body>
+
+<section id="login" hidden>
+  <form class="lbox" id="lform" autocomplete="off">
+    <h1>R-Phone Servis</h1>
+    <p>Masuk untuk mengelola data servis.</p>
+    <div class="f" id="urlf" hidden><label for="lurl">URL Web App (Apps Script)</label><input id="lurl" type="url" placeholder="https://script.google.com/macros/s/.../exec"/></div>
+    <div class="f"><label for="lpin">PIN admin</label><input id="lpin" type="password" inputmode="text" autocomplete="current-password"/></div>
+    <label class="chk"><input type="checkbox" id="lrem"/> Ingat di perangkat ini</label>
+    <button class="btn main full" type="submit" id="lgo">Masuk</button>
+    <p class="err" id="lerr" role="alert"></p>
+  </form>
+</section>
+
+<section id="app" hidden>
+  <header class="bar"><div class="wrap">
+    <div class="row">
+      <h1>Servis<small id="cnt"></small></h1>
+      <button class="ib" id="sync" aria-label="Muat ulang data"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></button>
+      <button class="ib" id="out" aria-label="Keluar"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
+    </div>
+    <div class="search"><input id="q" type="search" placeholder="Cari ID, nama, perangkat, atau HP" aria-label="Cari servis"/></div>
+    <div class="chips" id="chips"></div>
+    <div id="net" hidden>Offline. Menampilkan data terakhir, perubahan belum bisa disimpan.</div>
+  </div></header>
+  <main class="wrap"><div id="list"></div></main>
+  <button id="fab">+ Servis baru</button>
+</section>
+
+<div id="ov" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div id="toast" hidden></div>
+
+<script>
+/* ====== ISI DUA BARIS INI ====== */
+const API_URL  = 'https://script.google.com/macros/s/AKfycbwJySB8N02Bva2hwi9dKvyecCPuyRaqprhmkXHkJEhiPLduleBL7cMvcr74BL1bY-_ezg/exec';
+const BLOG_URL = 'https://rphonerepair.blogspot.com';
+/* =============================== */
+
+const $ = s => document.querySelector(s);
+const h = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = { get:k=>{try{return localStorage.getItem(k)}catch(e){return null}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}, del:k=>{try{localStorage.removeItem(k)}catch(e){}} };
+const SS = { get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}}, set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}}, del:k=>{try{sessionStorage.removeItem(k)}catch(e){}} };
+
+let url = /PASTE/.test(API_URL) ? (LS.get('rp_url') || '') : API_URL;
+let pin = SS.get('rp_pin') || LS.get('rp_pin') || '';
+let items = [], statuses = ['Masuk','Dicek','Menunggu sparepart','Dikerjakan','Selesai','Sudah diambil','Batal'];
+let filter = '', query = '', busy = false;
+
+try{ const c = JSON.parse(LS.get('rp_cache')||'null'); if(c){ items=c.items||[]; statuses=c.statuses||statuses; } }catch(e){}
+
+/* ---------- util ---------- */
+function toast(msg, bad){
+  const t = $('#toast'); t.textContent = msg; t.className = bad ? 'bad' : ''; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(()=>t.hidden = true, 2600);
+}
+function rel(iso){
+  if(!iso) return '';
+  const d = new Date(iso), s = (Date.now()-d)/1000;
+  if(isNaN(d)) return '';
+  if(s < 60) return 'baru saja';
+  if(s < 3600) return Math.floor(s/60)+' mnt lalu';
+  if(s < 86400) return Math.floor(s/3600)+' jam lalu';
+  if(s < 7*86400) return Math.floor(s/86400)+' hari lalu';
+  return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+}
+function rp(n){ const v = Number(String(n).replace(/\D/g,'')); return v ? 'Rp ' + v.toLocaleString('id-ID') : ''; }
+function tone(s){ return s==='Selesai'||s==='Sudah diambil' ? 's-done' : s==='Batal' ? 's-bad' : (s==='Masuk'||s==='Dicek') ? 's-new' : 's-work'; }
+function waNum(hp){ let d = String(hp||'').replace(/\D/g,''); if(d.startsWith('0')) d = '62'+d.slice(1); return d; }
+function waLink(it){
+  const msg = 'Halo ' + (it.nama||'') + ', servis ' + (it.perangkat||'HP') + ' Anda (ID ' + it.id + ') statusnya: ' + it.status + '.' +
+    '\nCek status kapan saja di ' + BLOG_URL + ' (isi ID + 4 digit terakhir nomor HP).';
+  return 'https://wa.me/' + waNum(it.hp) + '?text=' + encodeURIComponent(msg);
+}
+
+/* ---------- API ---------- */
+async function api(body){
+  const r = await fetch(url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({pin}, body)) });
+  const j = await r.json();
+  if(!j.ok){
+    if(j.error === 'pin'){ logout('PIN salah.'); }
+    const e = new Error(j.error || 'gagal'); e.code = j.error; throw e;
+  }
+  return j;
+}
+const ERR = { pin:'PIN salah.', locked:'Terlalu banyak percobaan. Coba lagi 15 menit lagi.', notfound:'Data tidak ditemukan.', json:'Data tidak valid.' };
+const errMsg = e => ERR[e.code] || 'Tidak bisa terhubung. Periksa internet atau URL Web App.';
+
+async function load(manual){
+  if(busy) return; busy = true; $('#sync').classList.add('spin');
+  try{
+    const j = await api({action:'list'});
+    items = j.items; statuses = j.statuses;
+    LS.set('rp_cache', JSON.stringify({items, statuses}));
+    $('#net').hidden = true; render();
+    if(manual) toast('Data diperbarui');
+  }catch(e){
+    if(e.code === 'pin') return;
+    $('#net').hidden = false; if(manual) toast(errMsg(e), true);
+  }finally{ busy = false; $('#sync').classList.remove('spin'); }
+}
+
+/* ---------- render ---------- */
+function renderChips(){
+  const all = ['Semua'].concat(statuses);
+  $('#chips').innerHTML = all.map(s => {
+    const on = (s==='Semua' && !filter) || s===filter;
+    const n = s==='Semua' ? items.length : items.filter(i=>i.status===s).length;
+    return '<button class="chip'+(on?' on':'')+'" data-s="'+h(s==='Semua'?'':s)+'">'+h(s)+' '+n+'</button>';
+  }).join('');
+}
+function render(){
+  renderChips();
+  const q = query.trim().toLowerCase();
+  const rows = items.filter(i =>
+    (!filter || i.status === filter) &&
+    (!q || [i.id,i.nama,i.perangkat,i.hp,i.keluhan].join(' ').toLowerCase().includes(q)));
+  $('#cnt').textContent = rows.length === items.length ? items.length : rows.length + '/' + items.length;
+  $('#list').innerHTML = rows.length ? rows.map(i =>
+    '<button class="card" data-id="'+h(i.id)+'"><div class="t"><span class="id">'+h(i.id)+'</span><span class="badge '+tone(i.status)+'">'+h(i.status)+'</span></div>'+
+    '<div class="n">'+h(i.nama||'(tanpa nama)')+'</div>'+
+    '<div class="d">'+h(i.perangkat)+(i.keluhan?' - '+h(i.keluhan):'')+'</div>'+
+    '<div class="u">Update '+h(rel(i.update))+'</div></button>').join('')
+    : '<div class="empty">'+(items.length ? 'Tidak ada servis yang cocok.' : 'Belum ada servis. Tekan "Servis baru" untuk mulai.')+'</div>';
+}
+
+/* ---------- sheet ---------- */
+function openSheet(html){ $('#sheet').innerHTML = html; $('#ov').hidden = false; document.body.style.overflow='hidden'; }
+function closeSheet(){ $('#ov').hidden = true; document.body.style.overflow=''; }
+
+function formFields(it){
+  it = it || {};
+  return '<div class="two"><div class="f"><label for="f-nama">Nama pelanggan</label><input id="f-nama" value="'+h(it.nama)+'"/></div>'+
+    '<div class="f"><label for="f-hp">Nomor HP</label><input id="f-hp" inputmode="tel" value="'+h(it.hp)+'"/></div></div>'+
+    '<div class="f"><label for="f-perangkat">Perangkat</label><input id="f-perangkat" placeholder="Contoh: Samsung A12" value="'+h(it.perangkat)+'"/></div>'+
+    '<div class="f"><label for="f-keluhan">Keluhan</label><input id="f-keluhan" value="'+h(it.keluhan)+'"/></div>'+
+    '<div class="f"><label for="f-biaya">Biaya (Rp)</label><input id="f-biaya" inputmode="numeric" value="'+h(it.biaya)+'"/></div>';
+}
+const val = id => ($('#'+id)||{}).value || '';
+
+function newSheet(){
+  openSheet('<h2>Servis baru</h2>'+formFields()+
+    '<div class="acts"><button class="btn" data-x="close">Batal</button><button class="btn main" data-x="add">Simpan</button></div>');
+  $('#f-nama').focus();
+}
+function editSheet(id){
+  const it = items.find(i=>i.id===id); if(!it) return;
+  openSheet('<h2><span>'+h(it.id)+'</span> '+h(it.nama||'')+'</h2>'+
+    '<label>Status</label><div class="sts">'+statuses.map(s=>'<button type="button" class="chip'+(s===it.status?' on':'')+'" data-st="'+h(s)+'">'+h(s)+'</button>').join('')+'</div>'+
+    formFields(it)+
+    '<div class="f"><label for="f-catatan">Catatan internal (tidak tampil di blog)</label><textarea id="f-catatan">'+h(it.catatan)+'</textarea></div>'+
+    '<div class="acts"><button class="btn main" data-x="save" data-id="'+h(id)+'">Simpan</button>'+
+    '<a class="btn" target="_blank" rel="noopener" href="'+h(waLink(it))+'">Kirim WA</a>'+
+    '<button class="btn warn" data-x="del" data-id="'+h(id)+'">Hapus</button></div>');
+  $('#sheet').dataset.status = it.status;
+}
+function doneSheet(it){
+  openSheet('<div class="done"><p>Servis tersimpan. ID pelanggan:</p><div class="big">'+h(it.id)+'</div>'+
+    '<p>Pelanggan cek di blog dengan ID ini + 4 digit terakhir nomor HP.</p>'+
+    '<div class="acts"><a class="btn main" target="_blank" rel="noopener" href="'+h(waLink(it))+'">Kirim ke WA pelanggan</a>'+
+    '<button class="btn" data-x="close">Selesai</button></div></div>');
+}
+
+async function guarded(btn, fn){
+  if(btn.disabled) return; btn.disabled = true;
+  try{ await fn(); }catch(e){ if(e.code!=='pin') toast(errMsg(e), true); }
+  finally{ btn.disabled = false; }
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', ev => {
+  const t = ev.target.closest('button,[data-x]'); if(!t) return;
+  if(t.id==='fab') return newSheet();
+  if(t.id==='sync') return load(true);
+  if(t.id==='out') return logout('');
+  if(t.classList.contains('card')) return editSheet(t.dataset.id);
+  if(t.closest('#chips')){ filter = t.dataset.s; return render(); }
+  if(t.dataset.st){
+    $('#sheet').dataset.status = t.dataset.st;
+    document.querySelectorAll('.sts .chip').forEach(c=>c.classList.toggle('on', c===t));
+    return;
+  }
+  const x = t.dataset.x;
+  if(x==='close') return closeSheet();
+  if(x==='add') return guarded(t, async()=>{
+    if(!val('f-nama').trim() || !val('f-perangkat').trim()) return toast('Isi nama dan perangkat dulu', true);
+    if(val('f-hp').replace(/\D/g,'').length < 4) return toast('Nomor HP minimal 4 digit', true);
+    const j = await api({action:'add', nama:val('f-nama'), hp:val('f-hp'), perangkat:val('f-perangkat'), keluhan:val('f-keluhan'), biaya:val('f-biaya')});
+    items.unshift(j.item); LS.set('rp_cache', JSON.stringify({items,statuses})); render(); doneSheet(j.item);
+  });
+  if(x==='save') return guarded(t, async()=>{
+    const id = t.dataset.id;
+    const j = await api({action:'update', id, fields:{
+      status:$('#sheet').dataset.status, nama:val('f-nama'), hp:val('f-hp'), perangkat:val('f-perangkat'),
+      keluhan:val('f-keluhan'), biaya:val('f-biaya'), catatan:val('f-catatan')}});
+    const k = items.findIndex(i=>i.id===id); if(k>=0) items[k] = j.item;
+    LS.set('rp_cache', JSON.stringify({items,statuses})); render(); closeSheet(); toast('Tersimpan');
+  });
+  if(x==='del') return guarded(t, async()=>{
+    if(!confirm('Hapus servis ' + t.dataset.id + '? Tidak bisa dibatalkan.')) return;
+    await api({action:'delete', id:t.dataset.id});
+    items = items.filter(i=>i.id!==t.dataset.id);
+    LS.set('rp_cache', JSON.stringify({items,statuses})); render(); closeSheet(); toast('Dihapus');
+  });
+});
+$('#ov').addEventListener('click', e => { if(e.target.id==='ov') closeSheet(); });
+document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('#ov').hidden) closeSheet(); });
+$('#q').addEventListener('input', e => { query = e.target.value; render(); });
+window.addEventListener('online', () => load());
+window.addEventListener('offline', () => $('#net').hidden = false);
+
+/* ---------- login ---------- */
+function showLogin(msg){
+  $('#app').hidden = true; $('#login').hidden = false;
+  $('#urlf').hidden = !(/PASTE/.test(API_URL) && !LS.get('rp_url'));
+  $('#lerr').textContent = msg || '';
+  $('#lpin').value = ''; setTimeout(()=>$('#lpin').focus(), 50);
+}
+function logout(msg){ pin = ''; SS.del('rp_pin'); LS.del('rp_pin'); showLogin(msg); }
+function showApp(){ $('#login').hidden = true; $('#app').hidden = false; render(); if(!navigator.onLine) $('#net').hidden = false; load(); }
+
+$('#lform').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('#lgo'), err = $('#lerr'); err.textContent = '';
+  if(!$('#urlf').hidden){ url = $('#lurl').value.trim(); }
+  if(!url || !/^https:\/\/script\.google\.com\//.test(url)){ err.textContent = 'URL Web App belum benar.'; return; }
+  const p = $('#lpin').value; if(!p){ err.textContent = 'Isi PIN.'; return; }
+  btn.disabled = true; pin = p;
+  try{
+    const j = await api({action:'list'});
+    if(/PASTE/.test(API_URL)) LS.set('rp_url', url);
+    (($('#lrem').checked) ? LS : SS).set('rp_pin', p);
+    items = j.items; statuses = j.statuses; LS.set('rp_cache', JSON.stringify({items,statuses}));
+    showApp();
+  }catch(ex){ if(ex.code!=='pin') err.textContent = errMsg(ex); }
+  finally{ btn.disabled = false; }
+});
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(pin && url) showApp(); else showLogin('');
+</script>
+</body>
+</html>

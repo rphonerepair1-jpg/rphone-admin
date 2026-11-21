@@ -1,0 +1,16 @@
+{
+  "name": "R-Phone Servis",
+  "short_name": "RP Servis",
+  "description": "Panel admin servis R-Phone Repair",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#030708",
+  "theme_color": "#030708",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
