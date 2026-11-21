@@ -276,10 +276,12 @@ function formFields(it, isNew){
     '<div class="f"><label for="f-hp">Nomor HP</label><input id="f-hp" inputmode="tel" autocomplete="off" value="'+h(it.hp)+'"/></div></div>'+
     '<div class="f"><label for="f-perangkat">Perangkat</label><input id="f-perangkat" list="dl-d" autocomplete="off" placeholder="Contoh: Samsung A12" value="'+h(it.perangkat)+'"/></div>'+
     '<div class="f"><label for="f-keluhan">Keluhan</label><input id="f-keluhan" list="dl-k" autocomplete="off" value="'+h(it.keluhan)+'"/><div class="sug">'+P_KEL.slice(0,6).map(k=>'<button type="button" class="chip" data-k="'+h(k)+'">'+h(k)+'</button>').join('')+'</div></div>'+
-    '<div class="f"><label for="f-biaya">Biaya (Rp)</label><input id="f-biaya" inputmode="numeric" value="'+h(it.biaya)+'"/><div class="sug" id="bsug"></div></div>'+
+    '<div class="f"><label for="f-kerusakan">Kerusakan (hasil cek, tampil ke pelanggan)</label><input id="f-kerusakan" list="dl-r" autocomplete="off" value="'+h(it.kerusakan)+'"/></div>'+
+    '<div class="f"><label for="f-biaya">Biaya / estimasi (Rp)</label><input id="f-biaya" inputmode="numeric" value="'+h(it.biaya)+'"/><div class="sug" id="bsug"></div></div>'+
+    '<div class="f"><label for="f-rincian">Rincian biaya (opsional)</label><input id="f-rincian" placeholder="Contoh: LCD 200rb + jasa 50rb" value="'+h(it.rincian)+'"/></div>'+
     '<div class="two"><div class="f"><label for="f-garansi">Garansi (hari)</label><input id="f-garansi" inputmode="numeric" value="'+h(gv)+'"/><div class="sug">'+[0,7,14,30,90].map(n=>'<button type="button" class="chip" data-g="'+n+'">'+(n||'Tanpa')+'</button>').join('')+'</div></div>'+
     '<div class="f"><label for="f-ketgaransi">Syarat garansi</label><input id="f-ketgaransi" value="'+h(kv)+'"/></div></div>'+
-    dl('dl-n',uniq(items.map(i=>i.nama)))+dl('dl-d',uniq(items.map(i=>i.perangkat).concat(P_DEV)))+dl('dl-k',uniq(items.map(i=>i.keluhan).concat(P_KEL)));
+    dl('dl-n',uniq(items.map(i=>i.nama)))+dl('dl-d',uniq(items.map(i=>i.perangkat).concat(P_DEV)))+dl('dl-k',uniq(items.map(i=>i.keluhan).concat(P_KEL)))+dl('dl-r',uniq(items.map(i=>i.kerusakan)));
 }
 const val = id => ($('#'+id)||{}).value || '';
 
@@ -294,6 +296,7 @@ function editSheet(id){
     '<label>Status</label><div class="sts">'+statuses.map(s=>'<button type="button" class="chip'+(s===it.status?' on':'')+'" data-st="'+h(s)+'">'+h(s)+'</button>').join('')+'</div>'+
     (function(){ const g = garText(it); return '<div class="stamp">Masuk: <b>'+h(fdt(it.masuk))+'</b><br>Update terakhir: <b>'+h(fdt(it.update))+'</b>'+(it.selesai?'<br>Selesai: <b>'+h(fdt(it.selesai))+'</b>':'')+'<br>Garansi: <b class="'+g[0]+'">'+h(g[1])+'</b><div class="tl">'+hist(it).map(x=>'<div><span>'+h(x.s)+'</span><span>'+h(fdt(x.t))+'</span></div>').join('')+'</div></div>'; })()+
     formFields(it)+
+    '<div class="f"><label for="f-ket">Keterangan untuk pelanggan (tampil di riwayat saat status diubah)</label><input id="f-ket" autocomplete="off"/></div>'+
     '<div class="f"><label for="f-catatan">Catatan internal (tidak tampil di blog)</label><textarea id="f-catatan">'+h(it.catatan)+'</textarea></div>'+
     '<div class="acts"><button class="btn main" data-x="save" data-id="'+h(id)+'">Simpan</button>'+
     '<a class="btn" target="_blank" rel="noopener" href="'+h(waLink(it))+'">Kirim WA</a>'+
@@ -334,14 +337,14 @@ document.addEventListener('click', ev => {
   if(x==='add') return guarded(t, async()=>{
     if(!val('f-nama').trim() || !val('f-perangkat').trim()) return toast('Isi nama dan perangkat dulu', true);
     if(val('f-hp').replace(/\D/g,'').length < 4) return toast('Nomor HP minimal 4 digit', true);
-    const j = await api({action:'add', nama:val('f-nama'), hp:val('f-hp'), perangkat:val('f-perangkat'), keluhan:val('f-keluhan'), biaya:val('f-biaya'), garansi:val('f-garansi'), ketgaransi:val('f-ketgaransi')});
+    const j = await api({action:'add', nama:val('f-nama'), hp:val('f-hp'), perangkat:val('f-perangkat'), keluhan:val('f-keluhan'), biaya:val('f-biaya'), garansi:val('f-garansi'), ketgaransi:val('f-ketgaransi'), kerusakan:val('f-kerusakan'), rincian:val('f-rincian')});
     items.unshift(j.item); LS.set('rp_cache', JSON.stringify({items,statuses})); render(); doneSheet(j.item);
   });
   if(x==='save') return guarded(t, async()=>{
     const id = t.dataset.id;
     const j = await api({action:'update', id, fields:{
       status:$('#sheet').dataset.status, nama:val('f-nama'), hp:val('f-hp'), perangkat:val('f-perangkat'),
-      keluhan:val('f-keluhan'), biaya:val('f-biaya'), catatan:val('f-catatan'), garansi:val('f-garansi'), ketgaransi:val('f-ketgaransi')}});
+      keluhan:val('f-keluhan'), biaya:val('f-biaya'), catatan:val('f-catatan'), garansi:val('f-garansi'), ketgaransi:val('f-ketgaransi'), kerusakan:val('f-kerusakan'), rincian:val('f-rincian'), ket:val('f-ket')}});
     const k = items.findIndex(i=>i.id===id); if(k>=0) items[k] = j.item;
     LS.set('rp_cache', JSON.stringify({items,statuses})); render(); closeSheet(); toast('Tersimpan');
   });
