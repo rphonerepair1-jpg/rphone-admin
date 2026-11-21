@@ -105,6 +105,13 @@ header.bar{position:sticky;top:0;z-index:10;padding:calc(10px + env(safe-area-in
 .done p{margin:0 0 16px;color:var(--muted)}
 #toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;max-width:90%;padding:10px 16px;border-radius:10px;background:var(--g);color:var(--on-g);font-size:.85rem;font-weight:500}
 #toast.bad{background:var(--red);color:#fff}
+.stamp{margin:0 0 14px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);font-size:.78rem;color:var(--muted);line-height:1.7}
+.stamp b{color:var(--ink);font-weight:500}
+.tl{margin:6px 0 0;padding:6px 0 0;border-top:1px dashed var(--line)}
+.tl div{display:flex;justify-content:space-between;gap:10px}
+.sug{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
+.sug .chip{padding:4px 10px;font-size:.74rem}
+.stamp b.ok{color:var(--g)}.stamp b.no{color:var(--red)}
 </style>
 </head>
 <body>
@@ -181,6 +188,30 @@ function waLink(it){
   return 'https://wa.me/' + waNum(it.hp) + '?text=' + encodeURIComponent(msg);
 }
 
+const FINAL = ['Selesai','Sudah diambil'];
+const P_DEV = ['Samsung A','Samsung M','Redmi','Redmi Note','Poco','Oppo A','Vivo Y','Realme C','Infinix Hot','Infinix Note','Tecno Spark','iPhone'];
+const P_KEL = ['Mati total','Ganti LCD','Ganti baterai','Charging tidak masuk','Bootloop','Lupa pola / FRP','Flash software','Kena air','Speaker / mic rusak','Sinyal hilang','Touchscreen error'];
+const digits = s => String(s||'').replace(/\D/g,'');
+function fdt(iso){ const d = new Date(iso); return isNaN(d) ? '-' : d.toLocaleString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'}); }
+function hist(it){
+  try{ const x = JSON.parse(it.riwayat||'[]'); if(Array.isArray(x) && x.length) return x; }catch(e){}
+  const x = [{s:'Masuk',t:it.masuk}]; if(it.status!=='Masuk') x.push({s:it.status,t:it.update}); return x;
+}
+function garText(it){
+  if(it.status==='Batal') return ['no','Batal, tanpa garansi'];
+  const hr = (it.garansi===''||it.garansi==null) ? null : Number(it.garansi);
+  if(hr==null) return ['','Belum diisi'];
+  if(!hr) return ['no','Tanpa garansi'];
+  if(FINAL.indexOf(it.status)<0) return ['',hr+' hari (dihitung sejak Selesai)'];
+  const b = new Date(it.selesai||it.update); if(isNaN(b)) return ['',hr+' hari'];
+  const p = b.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).split('-').map(Number);
+  const end = new Date(Date.UTC(p[0],p[1]-1,p[2]+hr,16,59,59)), left = Math.ceil((end-Date.now())/864e5);
+  const ds = end.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Jakarta'});
+  return left>0 ? ['ok','Aktif sampai '+ds+' (sisa '+left+' hari)'] : ['no','Berakhir '+ds];
+}
+function uniq(a){ const s=new Set(), o=[]; a.forEach(v=>{ v=String(v||'').trim(); const k=v.toLowerCase(); if(v&&!s.has(k)){ s.add(k); o.push(v); } }); return o; }
+const dl = (id,list) => '<datalist id="'+id+'">'+list.map(v=>'<option value="'+h(v)+'">').join('')+'</datalist>';
+
 /* ---------- API ---------- */
 async function api(body){
   const r = await fetch(url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({pin}, body)) });
@@ -228,7 +259,7 @@ function render(){
     '<button class="card" data-id="'+h(i.id)+'"><div class="t"><span class="id">'+h(i.id)+'</span><span class="badge '+tone(i.status)+'">'+h(i.status)+'</span></div>'+
     '<div class="n">'+h(i.nama||'(tanpa nama)')+'</div>'+
     '<div class="d">'+h(i.perangkat)+(i.keluhan?' - '+h(i.keluhan):'')+'</div>'+
-    '<div class="u">Update '+h(rel(i.update))+'</div></button>').join('')
+    '<div class="u">Masuk '+h(fdt(i.masuk))+' &middot; Update '+h(rel(i.update))+'</div></button>').join('')
     : '<div class="empty">'+(items.length ? 'Tidak ada servis yang cocok.' : 'Belum ada servis. Tekan "Servis baru" untuk mulai.')+'</div>';
 }
 
@@ -236,18 +267,24 @@ function render(){
 function openSheet(html){ $('#sheet').innerHTML = html; $('#ov').hidden = false; document.body.style.overflow='hidden'; }
 function closeSheet(){ $('#ov').hidden = true; document.body.style.overflow=''; }
 
-function formFields(it){
+function formFields(it, isNew){
   it = it || {};
-  return '<div class="two"><div class="f"><label for="f-nama">Nama pelanggan</label><input id="f-nama" value="'+h(it.nama)+'"/></div>'+
-    '<div class="f"><label for="f-hp">Nomor HP</label><input id="f-hp" inputmode="tel" value="'+h(it.hp)+'"/></div></div>'+
-    '<div class="f"><label for="f-perangkat">Perangkat</label><input id="f-perangkat" placeholder="Contoh: Samsung A12" value="'+h(it.perangkat)+'"/></div>'+
-    '<div class="f"><label for="f-keluhan">Keluhan</label><input id="f-keluhan" value="'+h(it.keluhan)+'"/></div>'+
-    '<div class="f"><label for="f-biaya">Biaya (Rp)</label><input id="f-biaya" inputmode="numeric" value="'+h(it.biaya)+'"/></div>';
+  const lk = items.find(i=>i.ketgaransi);
+  const gv = isNew ? 30 : (it.garansi==null ? '' : it.garansi);
+  const kv = isNew ? (lk ? lk.ketgaransi : 'Garansi untuk kerusakan yang sama. Tidak berlaku bila jatuh/terkena air.') : (it.ketgaransi||'');
+  return '<div class="two"><div class="f"><label for="f-nama">Nama pelanggan</label><input id="f-nama" list="dl-n" autocomplete="off" autocapitalize="words" value="'+h(it.nama)+'"/></div>'+
+    '<div class="f"><label for="f-hp">Nomor HP</label><input id="f-hp" inputmode="tel" autocomplete="off" value="'+h(it.hp)+'"/></div></div>'+
+    '<div class="f"><label for="f-perangkat">Perangkat</label><input id="f-perangkat" list="dl-d" autocomplete="off" placeholder="Contoh: Samsung A12" value="'+h(it.perangkat)+'"/></div>'+
+    '<div class="f"><label for="f-keluhan">Keluhan</label><input id="f-keluhan" list="dl-k" autocomplete="off" value="'+h(it.keluhan)+'"/><div class="sug">'+P_KEL.slice(0,6).map(k=>'<button type="button" class="chip" data-k="'+h(k)+'">'+h(k)+'</button>').join('')+'</div></div>'+
+    '<div class="f"><label for="f-biaya">Biaya (Rp)</label><input id="f-biaya" inputmode="numeric" value="'+h(it.biaya)+'"/><div class="sug" id="bsug"></div></div>'+
+    '<div class="two"><div class="f"><label for="f-garansi">Garansi (hari)</label><input id="f-garansi" inputmode="numeric" value="'+h(gv)+'"/><div class="sug">'+[0,7,14,30,90].map(n=>'<button type="button" class="chip" data-g="'+n+'">'+(n||'Tanpa')+'</button>').join('')+'</div></div>'+
+    '<div class="f"><label for="f-ketgaransi">Syarat garansi</label><input id="f-ketgaransi" value="'+h(kv)+'"/></div></div>'+
+    dl('dl-n',uniq(items.map(i=>i.nama)))+dl('dl-d',uniq(items.map(i=>i.perangkat).concat(P_DEV)))+dl('dl-k',uniq(items.map(i=>i.keluhan).concat(P_KEL)));
 }
 const val = id => ($('#'+id)||{}).value || '';
 
 function newSheet(){
-  openSheet('<h2>Servis baru</h2>'+formFields()+
+  openSheet('<h2>Servis baru</h2>'+formFields(null,true)+
     '<div class="acts"><button class="btn" data-x="close">Batal</button><button class="btn main" data-x="add">Simpan</button></div>');
   $('#f-nama').focus();
 }
@@ -255,6 +292,7 @@ function editSheet(id){
   const it = items.find(i=>i.id===id); if(!it) return;
   openSheet('<h2><span>'+h(it.id)+'</span> '+h(it.nama||'')+'</h2>'+
     '<label>Status</label><div class="sts">'+statuses.map(s=>'<button type="button" class="chip'+(s===it.status?' on':'')+'" data-st="'+h(s)+'">'+h(s)+'</button>').join('')+'</div>'+
+    (function(){ const g = garText(it); return '<div class="stamp">Masuk: <b>'+h(fdt(it.masuk))+'</b><br>Update terakhir: <b>'+h(fdt(it.update))+'</b>'+(it.selesai?'<br>Selesai: <b>'+h(fdt(it.selesai))+'</b>':'')+'<br>Garansi: <b class="'+g[0]+'">'+h(g[1])+'</b><div class="tl">'+hist(it).map(x=>'<div><span>'+h(x.s)+'</span><span>'+h(fdt(x.t))+'</span></div>').join('')+'</div></div>'; })()+
     formFields(it)+
     '<div class="f"><label for="f-catatan">Catatan internal (tidak tampil di blog)</label><textarea id="f-catatan">'+h(it.catatan)+'</textarea></div>'+
     '<div class="acts"><button class="btn main" data-x="save" data-id="'+h(id)+'">Simpan</button>'+
@@ -283,6 +321,9 @@ document.addEventListener('click', ev => {
   if(t.id==='out') return logout('');
   if(t.classList.contains('card')) return editSheet(t.dataset.id);
   if(t.closest('#chips')){ filter = t.dataset.s; return render(); }
+  if(t.dataset.k){ const e = $('#f-keluhan'); e.value = e.value.trim() ? e.value.trim()+', '+t.dataset.k : t.dataset.k; return; }
+  if(t.dataset.g){ $('#f-garansi').value = t.dataset.g; return; }
+  if(t.dataset.b){ $('#f-biaya').value = t.dataset.b; return; }
   if(t.dataset.st){
     $('#sheet').dataset.status = t.dataset.st;
     document.querySelectorAll('.sts .chip').forEach(c=>c.classList.toggle('on', c===t));
@@ -293,14 +334,14 @@ document.addEventListener('click', ev => {
   if(x==='add') return guarded(t, async()=>{
     if(!val('f-nama').trim() || !val('f-perangkat').trim()) return toast('Isi nama dan perangkat dulu', true);
     if(val('f-hp').replace(/\D/g,'').length < 4) return toast('Nomor HP minimal 4 digit', true);
-    const j = await api({action:'add', nama:val('f-nama'), hp:val('f-hp'), perangkat:val('f-perangkat'), keluhan:val('f-keluhan'), biaya:val('f-biaya')});
+    const j = await api({action:'add', nama:val('f-nama'), hp:val('f-hp'), perangkat:val('f-perangkat'), keluhan:val('f-keluhan'), biaya:val('f-biaya'), garansi:val('f-garansi'), ketgaransi:val('f-ketgaransi')});
     items.unshift(j.item); LS.set('rp_cache', JSON.stringify({items,statuses})); render(); doneSheet(j.item);
   });
   if(x==='save') return guarded(t, async()=>{
     const id = t.dataset.id;
     const j = await api({action:'update', id, fields:{
       status:$('#sheet').dataset.status, nama:val('f-nama'), hp:val('f-hp'), perangkat:val('f-perangkat'),
-      keluhan:val('f-keluhan'), biaya:val('f-biaya'), catatan:val('f-catatan')}});
+      keluhan:val('f-keluhan'), biaya:val('f-biaya'), catatan:val('f-catatan'), garansi:val('f-garansi'), ketgaransi:val('f-ketgaransi')}});
     const k = items.findIndex(i=>i.id===id); if(k>=0) items[k] = j.item;
     LS.set('rp_cache', JSON.stringify({items,statuses})); render(); closeSheet(); toast('Tersimpan');
   });
@@ -310,6 +351,25 @@ document.addEventListener('click', ev => {
     items = items.filter(i=>i.id!==t.dataset.id);
     LS.set('rp_cache', JSON.stringify({items,statuses})); render(); closeSheet(); toast('Dihapus');
   });
+});
+/* ---------- autofield ---------- */
+function bsug(){
+  const d = val('f-perangkat').trim().toLowerCase(), k = val('f-keluhan').trim().toLowerCase(), box = $('#bsug'); if(!box) return;
+  const ok = i => digits(i.biaya) && String(i.perangkat).trim().toLowerCase()===d;
+  const m = d && (items.find(i=>ok(i) && k && String(i.keluhan).trim().toLowerCase()===k) || items.find(ok));
+  box.innerHTML = m ? '<button type="button" class="chip" data-b="'+h(digits(m.biaya))+'">Biaya terakhir '+h(rp(m.biaya))+' ('+h(m.keluhan||m.perangkat)+')</button>' : '';
+}
+function fillHp(){ const n = val('f-nama').trim().toLowerCase(); if(!n || val('f-hp').trim()) return; const m = items.find(i=>String(i.nama).trim().toLowerCase()===n && i.hp); if(m) $('#f-hp').value = m.hp; }
+document.addEventListener('input', e => {
+  const id = e.target.id;
+  if(id==='f-hp'){ const d = digits(e.target.value); if(d.length>=8 && !val('f-nama').trim()){ const m = items.find(i=>digits(i.hp)===d); if(m) $('#f-nama').value = m.nama; } }
+  if(id==='f-nama' && (!e.inputType || e.inputType==='insertReplacementText')) fillHp();
+  if(id==='f-perangkat' || id==='f-keluhan') bsug();
+});
+document.addEventListener('change', e => {
+  if(e.target.id==='f-nama') fillHp();
+  if(e.target.id==='f-hp'){ const d = digits(e.target.value); if(d) e.target.value = d.startsWith('62') ? '0'+d.slice(2) : d; }
+  if(e.target.id==='f-perangkat' || e.target.id==='f-keluhan') bsug();
 });
 $('#ov').addEventListener('click', e => { if(e.target.id==='ov') closeSheet(); });
 document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('#ov').hidden) closeSheet(); });
