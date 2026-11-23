@@ -136,6 +136,7 @@ header.bar{position:sticky;top:0;z-index:10;padding:calc(10px + env(safe-area-in
 .tot b{font-size:1.15rem;color:var(--g)}
 .sisa{margin:-4px 0 10px;text-align:right;font-size:.78rem;color:var(--muted)}
 .ck{display:flex;align-items:center;gap:10px;margin:0 0 10px;color:var(--muted);font-size:.88rem}
+.tplh{margin:18px 0 6px;font:700 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--g)}
 .hint{margin:0 0 12px;font-size:.78rem;color:var(--muted)}
 .ck input{width:20px;height:20px;accent-color:var(--g)}
 </style>
@@ -209,9 +210,24 @@ function rel(iso){
 function rp(n){ const v = Number(String(n).replace(/\D/g,'')); return v ? 'Rp ' + v.toLocaleString('id-ID') : ''; }
 function tone(s){ return s==='Selesai'||s==='Sudah diambil' ? 's-done' : s==='Batal' ? 's-bad' : (s==='Masuk'||s==='Dicek') ? 's-new' : 's-work'; }
 function waNum(hp){ let d = String(hp||'').replace(/\D/g,''); if(d.startsWith('0')) d = '62'+d.slice(1); return d; }
+const DEF_TPL = {
+  'Masuk': 'Halo {nama}, {perangkat} Anda sudah kami terima (ID {id}). Kami akan segera mengeceknya.',
+  'Dicek': 'Halo {nama}, {perangkat} Anda (ID {id}) sedang kami cek. Estimasi biaya akan kami kabari segera.',
+  'Menunggu sparepart': 'Halo {nama}, {perangkat} Anda (ID {id}) sedang menunggu sparepart datang. Kami kabari begitu sudah dikerjakan.',
+  'Dikerjakan': 'Halo {nama}, {perangkat} Anda (ID {id}) sedang kami kerjakan.',
+  'Selesai': 'Halo {nama}, servis {perangkat} Anda (ID {id}) sudah SELESAI. Total biaya {biaya}. Silakan diambil, terima kasih.',
+  'Sudah diambil': 'Terima kasih {nama}, {perangkat} sudah diambil (ID {id}). Bila ada kendala di masa garansi, hubungi kami.',
+  'Batal': 'Halo {nama}, servis {perangkat} Anda (ID {id}) dibatalkan.'
+};
+const TPL_FALLBACK = 'Halo {nama}, servis {perangkat} Anda (ID {id}) statusnya: {status}.';
+const TPL_TAIL = '\nCek status kapan saja di {link} (isi ID + 4 digit terakhir nomor HP).\n{toko}';
+function tplOf(st){ return ((typeof SHOP!=='undefined' && SHOP.tpl) || {})[st] || DEF_TPL[st] || TPL_FALLBACK; }
 function waText(it){
-  return 'Halo ' + (it.nama||'') + ', servis ' + (it.perangkat||'HP') + ' Anda (ID ' + it.id + ') statusnya: ' + it.status + '.' +
-    '\nCek status kapan saja di ' + BLOG_URL + ' (isi ID + 4 digit terakhir nomor HP).';
+  const v = {nama:it.nama||'', id:it.id, perangkat:it.perangkat||'HP', status:it.status, biaya:rp(it.biaya)||'-', link:BLOG_URL, toko:(typeof SHOP!=='undefined'&&SHOP.nama)||''};
+  const fill = t => t.replace(/\{(\w+)\}/g, (m,k)=> k in v ? v[k] : m);
+  let t = tplOf(it.status);
+  if(!/\{link\}/.test(t)) t += TPL_TAIL.replace(/\n\{toko\}$/, '') ;
+  return fill(t);
 }
 function waLink(it){ return 'https://wa.me/' + waNum(it.hp) + '?text=' + encodeURIComponent(waText(it)); }
 
@@ -386,8 +402,10 @@ document.addEventListener('click', ev => {
       fotoSebelum:foto.b, fotoSesudah:foto.a});
     items.unshift(j.item); LS.set('rp_cache', JSON.stringify({items,statuses})); render(); doneSheet(j.item);
   });
+  if(x==='tplreset'){ document.querySelectorAll('[data-tpl]').forEach(e=>e.value = e.dataset.def); return toast('Teks dikembalikan, tekan Simpan'); }
   if(x==='saveshop') return guarded(t, async()=>{
-    const d = waNum(val('s-wa')), o = {nama:val('s-nama').trim(), alamat:val('s-alamat').trim(), wa:d ? '+'+d : ''};
+    const tpl = {}; document.querySelectorAll('[data-tpl]').forEach(e=>{ const t = e.value.trim(); if(t && t!==e.dataset.def.trim()) tpl[e.dataset.tpl] = t; });
+    const d = waNum(val('s-wa')), o = {nama:val('s-nama').trim(), alamat:val('s-alamat').trim(), wa:d ? '+'+d : '', tpl};
     if(!o.nama) return toast('Nama toko tidak boleh kosong', true);
     if(d && d.length < 9) return toast('Nomor WA terlalu pendek', true);
     setShop(o); closeSheet();
@@ -502,13 +520,17 @@ document.addEventListener('input', e => { if(e.target.closest('#items') || e.tar
 /* ---------- nota digital ---------- */
 const SHOP_DEF = {nama:'R PHONE REPAIR', alamat:'Jl. Merdeka Tegalaya dekat smk4 Kota Sukabumi', wa:'+6289509860411'};
 let SHOP = Object.assign({}, SHOP_DEF);
-function setShop(o){ SHOP = Object.assign({}, SHOP_DEF, Object.fromEntries(Object.entries(o||{}).filter(([k,v])=>v))); LS.set('rp_shop', JSON.stringify(SHOP)); }
+function setShop(o){ SHOP = Object.assign({tpl:{}}, SHOP_DEF, Object.fromEntries(Object.entries(o||{}).filter(([k,v])=>v))); LS.set('rp_shop', JSON.stringify(SHOP)); }
 try{ setShop(JSON.parse(LS.get('rp_shop')||'null')); }catch(e){}
 function shopSheet(){
   openSheet('<h2>Pengaturan toko</h2><div class="f"><label for="s-nama">Nama toko</label><input id="s-nama" autocomplete="off" value="'+h(SHOP.nama)+'"/></div>'+
     '<div class="f"><label for="s-alamat">Alamat</label><textarea id="s-alamat" rows="2">'+h(SHOP.alamat)+'</textarea></div>'+
     '<div class="f"><label for="s-wa">Nomor WhatsApp toko</label><input id="s-wa" inputmode="tel" autocomplete="off" placeholder="Contoh: 08950xxxxxxx" value="'+h(SHOP.wa)+'"/></div>'+
     '<p class="hint">Tampil di header nota yang dikirim ke pelanggan.</p>'+
+    '<h3 class="tplh">Template pesan WA per status</h3>'+
+    '<p class="hint">Dipakai saat tombol WA ditekan. Kosongkan kotak untuk memakai teks bawaan. Kode yang bisa dipakai: {nama} {id} {perangkat} {status} {biaya} {link} {toko}. Link cek status otomatis ditambahkan di akhir kalau {link} tidak ditulis.</p>'+
+    statuses.map(st=>'<div class="f"><label>'+h(st)+'</label><textarea rows="3" data-tpl="'+h(st)+'" data-def="'+h(DEF_TPL[st]||TPL_FALLBACK)+'">'+h((SHOP.tpl||{})[st]||DEF_TPL[st]||TPL_FALLBACK)+'</textarea></div>').join('')+
+    '<button type="button" class="btn" data-x="tplreset" style="width:100%;margin:0 0 12px">Kembalikan semua teks bawaan</button>'+
     '<div class="acts"><button class="btn" data-x="close">Batal</button><button class="btn main" data-x="saveshop">Simpan</button></div>');
 }
 let LOGO = null;
