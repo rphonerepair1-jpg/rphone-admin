@@ -144,6 +144,14 @@ header.bar{position:sticky;top:0;z-index:10;padding:calc(10px + env(safe-area-in
 .tplh{margin:18px 0 6px;font:700 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--g)}
 .hint{margin:0 0 12px;font-size:.78rem;color:var(--muted)}
 .ck input{width:20px;height:20px;accent-color:var(--g)}
+.ph.sv::after{content:"\2714  Tersimpan";font-size:.8rem;color:var(--g)}
+.sec textarea{min-height:0}
+#ask{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;width:min(94%,440px);padding:12px 14px;border:1px solid var(--g);border-radius:14px;background:var(--panel);box-shadow:0 12px 32px rgba(0,0,0,.55)}
+#ask p{margin:0 0 10px;font-size:.88rem}
+#ask div{display:flex;gap:8px}
+#ask .btn{flex:1;min-height:40px;padding:0 10px}
+@keyframes fl{0%,60%{box-shadow:0 0 0 2px var(--g)}100%{box-shadow:0 0 0 2px transparent}}
+.sec.flash{animation:fl 1.6s ease-out}
 </style>
 </head>
 <body>
@@ -178,6 +186,7 @@ header.bar{position:sticky;top:0;z-index:10;padding:calc(10px + env(safe-area-in
 
 <div id="ov" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
 <div id="toast" hidden></div>
+<div id="ask" role="alert" hidden><p></p><div></div></div>
 
 <script>
 /* ====== ISI DUA BARIS INI ====== */
@@ -356,46 +365,92 @@ function render(){
 
 /* ---------- sheet ---------- */
 function openSheet(html){ $('#sheet').innerHTML = html; $('#ov').hidden = false; document.body.style.overflow='hidden'; }
-function closeSheet(){ $('#ov').hidden = true; document.body.style.overflow=''; }
+function closeSheet(){ $('#ov').hidden = true; document.body.style.overflow=''; hideAsk(); }
 
-function formFields(it, isNew){
-  it = it || {};
-  const lk = items.find(i=>i.ketgaransi);
-  const gv = isNew ? 30 : (it.garansi==null ? '' : it.garansi);
-  const kv = isNew ? (lk ? lk.ketgaransi : 'Garansi untuk kerusakan yang sama. Tidak berlaku bila jatuh/terkena air.') : (it.ketgaransi||'');
-  return '<div class="sug" style="margin:0 0 8px"><button type="button" class="chip" data-pick="1">&#128222; Ambil dari kontak HP</button></div>'+
-    '<div class="two"><div class="f"><label for="f-nama">Nama pelanggan</label><input id="f-nama" list="dl-n" autocomplete="off" autocapitalize="words" value="'+h(it.nama)+'"/></div>'+
-    '<div class="f"><label for="f-hp">Nomor HP</label><input id="f-hp" inputmode="tel" autocomplete="off" value="'+h(it.hp)+'"/></div></div>'+
-    '<div class="f"><label for="f-perangkat">Perangkat</label><input id="f-perangkat" list="dl-d" autocomplete="off" placeholder="Contoh: Samsung A12" value="'+h(it.perangkat)+'"/></div>'+
-    '<div class="f"><label for="f-keluhan">Keluhan</label><input id="f-keluhan" list="dl-k" autocomplete="off" value="'+h(it.keluhan)+'"/><div class="sug">'+P_KEL.slice(0,6).map(k=>'<button type="button" class="chip" data-k="'+h(k)+'">'+h(k)+'</button>').join('')+'</div></div>'+
-    '<div class="f"><label for="f-kerusakan">Kerusakan (hasil cek, tampil ke pelanggan)</label><input id="f-kerusakan" list="dl-r" autocomplete="off" value="'+h(it.kerusakan)+'"/></div>'+
-    '<div class="f"><label for="f-biaya">Biaya / estimasi (Rp)</label><input id="f-biaya" inputmode="numeric" value="'+h(it.biaya)+'"/><div class="sug" id="bsug"></div></div>'+
-    '<div class="f"><label for="f-rincian">Rincian biaya (opsional)</label><input id="f-rincian" placeholder="Contoh: LCD 200rb + jasa 50rb" value="'+h(it.rincian)+'"/></div>'+
-    '<div class="two"><div class="f"><label for="f-garansi">Garansi (hari)</label><input id="f-garansi" inputmode="numeric" value="'+h(gv)+'"/><div class="sug">'+[0,7,14,30,90].map(n=>'<button type="button" class="chip" data-g="'+n+'">'+(n||'Tanpa')+'</button>').join('')+'</div></div>'+
-    '<div class="f"><label for="f-ketgaransi">Syarat garansi</label><input id="f-ketgaransi" value="'+h(kv)+'"/></div></div>'+
-    dl('dl-n',uniq(items.map(i=>i.nama)))+dl('dl-d',uniq(items.map(i=>i.perangkat).concat(P_DEV)))+dl('dl-k',uniq(items.map(i=>i.keluhan).concat(P_KEL)))+dl('dl-r',uniq(items.map(i=>i.kerusakan)));
-}
 const val = id => ($('#'+id)||{}).value || '';
+const GAR_DEF = 'Garansi untuk kerusakan yang sama. Tidak berlaku bila jatuh/terkena air.';
+
+/* satu form untuk servis baru DAN edit (it = data servis saat edit) */
+function servisForm(it){
+  const edit = !!it; it = it || {};
+  const sel = (id,ph,list,cur) => { if(cur && list.indexOf(cur)<0) list = list.concat([cur]);
+    return '<select id="'+id+'"><option value="">'+ph+'</option>'+list.map(v=>'<option'+(v===cur?' selected':'')+'>'+h(v)+'</option>').join('')+'</select>'; };
+  let merk = it.merk||'', tipe = it.tipe||'';
+  if(edit && !merk && !tipe){ /* data lama: pecah "Samsung A12" jadi merk + tipe */
+    const pf = String(it.perangkat||'').trim(), m = P_MERK.find(x=>x!=='Lainnya' && pf.toLowerCase().startsWith(x.toLowerCase()));
+    if(m){ merk = m; tipe = pf.slice(m.length).trim(); } else tipe = pf;
+  }
+  const lk = items.find(i=>i.ketgaransi);
+  const gv = edit ? (it.garansi==null ? '' : it.garansi) : 30;
+  const kv = edit ? (it.ketgaransi||'') : (lk ? lk.ketgaransi : GAR_DEF);
+  const dis = num(it.diskon), dp = num(it.dp);
+  const ph = k => { const u = k==='b' ? it.fotosebelum : it.fotosesudah;
+    return '<div><label class="ph'+(u?' on sv':'')+'" id="ph-'+k+'"><span>&#128247;</span><input type="file" accept="image/*" data-foto="'+k+'" hidden/></label><div class="phl">'+(k==='b'?'Sebelum':'Sesudah')+'</div></div>'; };
+  return '<div class="sec"><h3>Informasi pelanggan</h3>'+
+    '<div class="f"><input id="f-nama" list="dl-n" autocomplete="off" autocapitalize="words" placeholder="Nama Pelanggan (Umum)" value="'+h(it.nama)+'"/></div>'+
+    '<div class="rowp"><input id="f-hp" inputmode="tel" autocomplete="off" placeholder="Nomor HP WhatsApp" value="'+h(it.hp)+'"/><button type="button" class="btn" data-pick="1">AMBIL</button></div>'+
+    '<div class="f"><input id="f-alamat" autocomplete="off" placeholder="Alamat" value="'+h(it.alamat)+'"/></div></div>'+
+    '<div class="sec"><h3>Detail perangkat</h3>'+
+    '<div class="f">'+sel('f-merk','Merk HP',P_MERK,merk)+'</div>'+
+    '<div class="f"><input id="f-tipe" list="dl-t" autocomplete="off" placeholder="Tipe HP" value="'+h(tipe)+'"/></div>'+
+    '<div class="f"><label for="f-kunci">Tipe Kunci Layar</label>'+sel('f-kunci','',['None','Pola','PIN','Password'],it.kunci||'None').replace('<option value=""></option>','')+'</div></div>'+
+    '<div class="sec"><h3>Dokumentasi unit (opsional)</h3><div class="photos">'+ph('b')+ph('a')+'</div></div>'+
+    '<div class="sec"><h3>Rincian perbaikan</h3><div id="items"></div>'+
+    '<button type="button" class="addi" data-x="additem">+ TAMBAH KERUSAKAN LAIN (+)</button>'+
+    '<div class="tot"><span>TOTAL ESTIMASI BIAYA</span><b id="f-total">Rp 0</b></div>'+
+    '<label class="ck"><input type="checkbox" id="f-dis"'+(dis?' checked':'')+'/> Gunakan Diskon</label>'+
+    '<div class="f" id="disbox"'+(dis?'':' hidden')+'><input id="f-diskon" inputmode="numeric" placeholder="Nominal diskon (Rp)" value="'+(dis||'')+'"/></div>'+
+    '<div class="f"><input id="f-dp" inputmode="numeric" placeholder="Uang Muka (DP)" value="'+(dp||'')+'"/></div><div class="sisa" id="f-sisa"></div></div>'+
+    '<div class="sec"><h3>Status &amp; pembayaran</h3>'+
+    '<div class="f"><select id="f-status">'+statuses.map(x=>'<option'+(x===it.status?' selected':'')+'>'+h(x)+'</option>').join('')+'</select></div>'+
+    (edit ? '<div class="f"><input id="f-ket" autocomplete="off" placeholder="Keterangan untuk pelanggan (tampil di riwayat saat status diubah)"/></div>' : '')+
+    '<label class="ck"><input type="checkbox" id="f-lunas"'+(it.lunas==='Ya'?' checked':'')+'/> Status Pembayaran Lunas</label>'+
+    '<div class="f"><textarea id="f-catatan" rows="2" placeholder="Catatan Teknisi (tidak tampil di blog)">'+h(it.catatan)+'</textarea></div></div>'+
+    '<div class="sec" id="sec-garansi"><h3>Garansi</h3>'+
+    '<div class="f"><label for="f-garansi">Garansi (hari)</label><input id="f-garansi" inputmode="numeric" value="'+h(gv)+'"/><div class="sug">'+[0,7,14,30,90].map(n=>'<button type="button" class="chip" data-g="'+n+'">'+(n||'Tanpa')+'</button>').join('')+'</div></div>'+
+    '<div class="f"><label for="f-ketgaransi">Syarat garansi</label><textarea id="f-ketgaransi" rows="2">'+h(kv)+'</textarea></div></div>'+
+    dl('dl-n',uniq(items.map(i=>i.nama)))+dl('dl-t',uniq(items.map(i=>i.tipe)))+dl('dl-k',uniq(items.map(i=>i.kerusakan).concat(P_KEL)))+
+    dl('dl-p',uniq(P_PART.concat(items.flatMap(i=>{ try{ return JSON.parse(i.items||'[]').map(x=>x.part); }catch(e){ return []; } }))));
+}
+function itemsOf(it){
+  const a = parseItems(it); if(a.length) return a;
+  const nm = it.kerusakan || it.keluhan || '', b = num(it.biaya) + num(it.diskon); /* data lama tanpa rincian */
+  return (nm || b) ? [{part:'', name:nm, jasa:b, modal:0}] : [];
+}
+function fillItems(list){ $('#items').innerHTML = ''; (list.length ? list : [{}]).forEach(addItem); }
+function collect(){
+  const merk = val('f-merk'), tipe = val('f-tipe').trim(), its = readItems(), c = calc(), names = its.map(i=>i.name).filter(Boolean).join(', ');
+  return {nama:val('f-nama').trim(), hp:val('f-hp'), alamat:val('f-alamat'), merk, tipe, kunci:val('f-kunci'),
+    perangkat:(merk+' '+tipe).trim(), keluhan:names, kerusakan:names,
+    rincian:its.filter(i=>i.name||i.part).map(i=>(i.name||i.part)+' '+rp(i.jasa+i.modal)).join(' + '),
+    items:JSON.stringify(its), diskon:c.dis, dp:c.dp, biaya:c.net||'', lunas:$('#f-lunas').checked,
+    status:val('f-status'), catatan:val('f-catatan'), garansi:val('f-garansi').trim(), ketgaransi:val('f-ketgaransi').trim(), ket:val('f-ket').trim(),
+    fotoSebelum:foto.b, fotoSesudah:foto.a};
+}
+function formError(p){
+  if(!p.nama || !p.perangkat) return 'Isi nama dan merk/tipe HP dulu';
+  if(digits(p.hp).length < 4) return 'Nomor HP minimal 4 digit';
+  return '';
+}
 
 function newSheet(){
   foto = {b:'', a:''};
-  openSheet('<h2>Form Servis HP</h2>'+newForm()+
+  openSheet('<h2>Form Servis HP</h2>'+servisForm()+
     '<div class="acts"><button class="btn" data-x="close">Batal</button><button class="btn main" data-x="add">Simpan data</button></div>');
-  addItem(); calc();
+  fillItems([]); calc();
 }
 function editSheet(id){
   const it = items.find(i=>i.id===id); if(!it) return;
+  foto = {b:'', a:''};
+  const g = garText(it);
   openSheet('<h2><span>'+h(it.id)+'</span> '+h(it.nama||'')+'</h2>'+
-    '<label>Status</label><div class="sts">'+statuses.map(s=>'<button type="button" class="chip'+(s===it.status?' on':'')+'" data-st="'+h(s)+'">'+h(s)+'</button>').join('')+'</div>'+
-    (function(){ const g = garText(it); return '<div class="stamp">Masuk: <b>'+h(fdt(it.masuk))+'</b><br>Update terakhir: <b>'+h(fdt(it.update))+'</b>'+(it.selesai?'<br>Selesai: <b>'+h(fdt(it.selesai))+'</b>':'')+'<br>Garansi: <b class="'+g[0]+'">'+h(g[1])+'</b><div class="tl">'+hist(it).map(x=>'<div><span>'+h(x.s)+'</span><span>'+h(fdt(x.t))+'</span></div>').join('')+'</div></div>'; })()+
-    formFields(it)+
-    '<div class="f"><label for="f-ket">Keterangan untuk pelanggan (tampil di riwayat saat status diubah)</label><input id="f-ket" autocomplete="off"/></div>'+
-    '<div class="f"><label for="f-catatan">Catatan internal (tidak tampil di blog)</label><textarea id="f-catatan">'+h(it.catatan)+'</textarea></div>'+
-    '<div class="acts"><button class="btn main" data-x="save" data-id="'+h(id)+'">Simpan</button>'+
-    '<a class="btn" target="_blank" rel="noopener" href="'+h(waLink(it))+'">WA teks</a>'+
+    '<div class="stamp">Masuk: <b>'+h(fdt(it.masuk))+'</b><br>Update terakhir: <b>'+h(fdt(it.update))+'</b>'+(it.selesai?'<br>Selesai: <b>'+h(fdt(it.selesai))+'</b>':'')+'<br>Garansi: <b class="'+g[0]+'">'+h(g[1])+'</b><div class="tl">'+hist(it).map(x=>'<div><span>'+h(x.s)+'</span><span>'+h(fdt(x.t))+'</span></div>').join('')+'</div></div>'+
+    servisForm(it)+
+    '<div class="acts"><button class="btn" data-x="close">Batal</button><button class="btn main" data-x="save" data-id="'+h(id)+'">Simpan data</button></div>'+
+    '<div class="acts"><a class="btn" target="_blank" rel="noopener" href="'+h(waLink(it))+'">WA teks</a>'+
     '<button class="btn" data-x="nota" data-id="'+h(id)+'">WA teks + nota</button>'+
     '<button class="btn warn" data-x="del" data-id="'+h(id)+'">Hapus</button></div>');
-  $('#sheet').dataset.status = it.status;
+  fillItems(itemsOf(it)); calc();
 }
 function doneSheet(it){
   openSheet('<div class="done"><p>Servis tersimpan. ID pelanggan:</p><div class="big">'+h(it.id)+'</div>'+
@@ -427,26 +482,11 @@ document.addEventListener('click', ev => {
   if(t.dataset.x==='delitem'){ const b=$('#items'); if(b.children.length>1) t.closest('.it').remove(); else b.querySelectorAll('input').forEach(i=>i.value=''); b.querySelectorAll('.itop span').forEach((x,n)=>x.textContent='ITEM #'+(n+1)); return calc(); }
   if(t.dataset.g){ $('#f-garansi').value = t.dataset.g; return; }
   if(t.dataset.b){ $('#f-biaya').value = t.dataset.b; return; }
-  if(t.dataset.st){
-    $('#sheet').dataset.status = t.dataset.st;
-    document.querySelectorAll('.sts .chip').forEach(c=>c.classList.toggle('on', c===t));
-    return;
-  }
   const x = t.dataset.x;
   if(x==='close') return closeSheet();
   if(x==='add') return guarded(t, async()=>{
-    const merk = val('f-merk'), tipe = val('f-tipe').trim(), perangkat = (merk+' '+tipe).trim();
-    if(!val('f-nama').trim() || !perangkat) return toast('Isi nama dan merk/tipe HP dulu', true);
-    if(val('f-hp').replace(/\D/g,'').length < 4) return toast('Nomor HP minimal 4 digit', true);
-    const its = readItems(), c = calc(), names = its.map(i=>i.name).filter(Boolean).join(', ');
-    const lk = items.find(i=>i.ketgaransi);
-    const j = await api({action:'add', nama:val('f-nama'), hp:val('f-hp'), alamat:val('f-alamat'), merk, tipe, kunci:val('f-kunci'),
-      perangkat, keluhan:names, kerusakan:names,
-      rincian:its.filter(i=>i.name||i.part).map(i=>(i.name||i.part)+' '+rp(i.jasa+i.modal)).join(' + '),
-      items:JSON.stringify(its), diskon:c.dis, dp:c.dp, biaya:c.net||'', lunas:$('#f-lunas').checked,
-      status:val('f-status'), catatan:val('f-catatan'),
-      ketgaransi: lk ? lk.ketgaransi : 'Garansi untuk kerusakan yang sama. Tidak berlaku bila jatuh/terkena air.',
-      fotoSebelum:foto.b, fotoSesudah:foto.a});
+    const p = collect(), err = formError(p); if(err) return toast(err, true);
+    const j = await api(Object.assign({action:'add'}, p));
     items.unshift(j.item); LS.set('rp_cache', JSON.stringify({items,statuses})); render(); doneSheet(j.item);
   });
   if(x==='tplreset'){ document.querySelectorAll('[data-tpl]').forEach(e=>e.value = e.dataset.def); return toast('Teks dikembalikan, tekan Simpan'); }
@@ -466,10 +506,8 @@ document.addEventListener('click', ev => {
     return void window.open(x==='wa' ? waLink(it) : remindLink(it), '_blank');
   }
   if(x==='save') return guarded(t, async()=>{
-    const id = t.dataset.id;
-    const j = await api({action:'update', id, fields:{
-      status:$('#sheet').dataset.status, nama:val('f-nama'), hp:val('f-hp'), perangkat:val('f-perangkat'),
-      keluhan:val('f-keluhan'), biaya:val('f-biaya'), catatan:val('f-catatan'), garansi:val('f-garansi'), ketgaransi:val('f-ketgaransi'), kerusakan:val('f-kerusakan'), rincian:val('f-rincian'), ket:val('f-ket')}});
+    const id = t.dataset.id, p = collect(), err = formError(p); if(err) return toast(err, true);
+    const j = await api({action:'update', id, fields:p});
     const k = items.findIndex(i=>i.id===id); if(k>=0) items[k] = j.item;
     LS.set('rp_cache', JSON.stringify({items,statuses})); render(); closeSheet(); toast('Tersimpan');
   });
@@ -504,14 +542,15 @@ const P_MERK = ['Samsung','Xiaomi','Redmi','Poco','Oppo','Vivo','Realme','Infini
 const P_PART = ['LCD','Baterai','Konektor charger','Flexibel power','Flexibel volume','Speaker','Mic','Kamera depan','Kamera belakang','Back cover','Touchscreen','IC power','Tanpa part'];
 let foto = {b:'', a:''};
 const num = v => Number(digits(v)) || 0;
-function itemHtml(n){
+function itemHtml(n, v){
+  v = v || {};
   return '<div class="it"><div class="itop"><span>ITEM #'+n+'</span><button type="button" class="x" data-x="delitem" aria-label="Hapus item">&times;</button></div>'+
-    '<div class="f"><input class="i-part" list="dl-p" autocomplete="off" placeholder="Sparepart (stok)"/></div>'+
-    '<div class="f"><input class="i-name" list="dl-k" autocomplete="off" placeholder="Kerusakan / Jasa"/></div>'+
+    '<div class="f"><input class="i-part" list="dl-p" autocomplete="off" placeholder="Sparepart (stok)" value="'+h(v.part)+'"/></div>'+
+    '<div class="f"><input class="i-name" list="dl-k" autocomplete="off" placeholder="Kerusakan / Jasa" value="'+h(v.name)+'"/></div>'+
     '<div class="chips">'+[30,40,50,75,100,150].map(k=>'<button type="button" class="chip" data-j="'+(k*1000)+'">'+k+'RB</button>').join('')+'</div>'+
-    '<div class="pair"><input class="i-harga" inputmode="numeric" placeholder="Harga Jasa"/><input class="i-modal" inputmode="numeric" placeholder="Modal Part"/></div></div>';
+    '<div class="pair"><input class="i-harga" inputmode="numeric" placeholder="Harga Jasa" value="'+(v.jasa||'')+'"/><input class="i-modal" inputmode="numeric" placeholder="Modal Part" value="'+(v.modal||'')+'"/></div></div>';
 }
-function addItem(){ const box = $('#items'); box.insertAdjacentHTML('beforeend', itemHtml(box.children.length+1)); }
+function addItem(v){ const box = $('#items'); box.insertAdjacentHTML('beforeend', itemHtml(box.children.length+1, v)); }
 function readItems(){
   return [...document.querySelectorAll('#items .it')].map(e=>({
     part:e.querySelector('.i-part').value.trim(), name:e.querySelector('.i-name').value.trim(),
@@ -526,31 +565,6 @@ function calc(){
   $('#f-sisa').textContent = (dp && !$('#f-lunas').checked) ? 'Sisa bayar Rp ' + Math.max(0,net-dp).toLocaleString('id-ID') : '';
   return {tot, dis, net, dp};
 }
-function newForm(){
-  const sel = (id,ph,list) => '<select id="'+id+'"><option value="">'+ph+'</option>'+list.map(v=>'<option>'+h(v)+'</option>').join('')+'</select>';
-  return '<div class="sec"><h3>Informasi pelanggan</h3>'+
-    '<div class="f"><input id="f-nama" list="dl-n" autocomplete="off" autocapitalize="words" placeholder="Nama Pelanggan (Umum)"/></div>'+
-    '<div class="rowp"><input id="f-hp" inputmode="tel" autocomplete="off" placeholder="Nomor HP WhatsApp"/><button type="button" class="btn" data-pick="1">AMBIL</button></div>'+
-    '<div class="f"><input id="f-alamat" autocomplete="off" placeholder="Alamat"/></div></div>'+
-    '<div class="sec"><h3>Detail perangkat</h3>'+
-    '<div class="f">'+sel('f-merk','Merk HP',P_MERK)+'</div>'+
-    '<div class="f"><input id="f-tipe" list="dl-t" autocomplete="off" placeholder="Tipe HP"/></div>'+
-    '<div class="f"><label for="f-kunci">Tipe Kunci Layar</label><select id="f-kunci"><option>None</option><option>Pola</option><option>PIN</option><option>Password</option></select></div></div>'+
-    '<div class="sec"><h3>Dokumentasi unit (opsional)</h3><div class="photos">'+
-    ['b','a'].map(k=>'<div><label class="ph" id="ph-'+k+'"><span>&#128247;</span><input type="file" accept="image/*" data-foto="'+k+'" hidden/></label><div class="phl">'+(k==='b'?'Sebelum':'Sesudah')+'</div></div>').join('')+'</div></div>'+
-    '<div class="sec"><h3>Rincian perbaikan</h3><div id="items"></div>'+
-    '<button type="button" class="addi" data-x="additem">+ TAMBAH KERUSAKAN LAIN (+)</button>'+
-    '<div class="tot"><span>TOTAL ESTIMASI BIAYA</span><b id="f-total">Rp 0</b></div>'+
-    '<label class="ck"><input type="checkbox" id="f-dis"/> Gunakan Diskon</label>'+
-    '<div class="f" id="disbox" hidden><input id="f-diskon" inputmode="numeric" placeholder="Nominal diskon (Rp)"/></div>'+
-    '<div class="f"><input id="f-dp" inputmode="numeric" placeholder="Uang Muka (DP)"/></div><div class="sisa" id="f-sisa"></div></div>'+
-    '<div class="sec"><h3>Status &amp; pembayaran</h3>'+
-    '<div class="f"><select id="f-status">'+statuses.map(x=>'<option>'+h(x)+'</option>').join('')+'</select></div>'+
-    '<label class="ck"><input type="checkbox" id="f-lunas"/> Status Pembayaran Lunas</label>'+
-    '<div class="f"><textarea id="f-catatan" rows="2" placeholder="Catatan Teknisi"></textarea></div></div>'+
-    dl('dl-n',uniq(items.map(i=>i.nama)))+dl('dl-t',uniq(items.map(i=>i.tipe)))+dl('dl-k',uniq(items.map(i=>i.kerusakan).concat(P_KEL)))+
-    dl('dl-p',uniq(P_PART.concat(items.flatMap(i=>{ try{ return JSON.parse(i.items||'[]').map(x=>x.part); }catch(e){ return []; } }))));
-}
 function shrink(file, max){
   return new Promise((res,rej)=>{
     const im = new Image(), u = URL.createObjectURL(file);
@@ -563,11 +577,35 @@ function shrink(file, max){
 }
 document.addEventListener('change', async e => {
   const k = e.target.dataset && e.target.dataset.foto; if(!k || !e.target.files[0]) return;
-  try{ const d = await shrink(e.target.files[0], 1000); foto[k] = d; const p = $('#ph-'+k); p.style.backgroundImage = 'url('+d+')'; p.classList.add('on'); }
+  try{ const d = await shrink(e.target.files[0], 1000); foto[k] = d; const p = $('#ph-'+k); p.style.backgroundImage = 'url('+d+')'; p.classList.add('on'); p.classList.remove('sv'); }
   catch(err){ toast('Foto gagal dibaca', true); }
 });
 document.addEventListener('change', e => { if(e.target.id==='f-dis'){ $('#disbox').hidden = !e.target.checked; calc(); } if(e.target.id==='f-lunas') calc(); });
 document.addEventListener('input', e => { if(e.target.closest('#items') || e.target.id==='f-diskon' || e.target.id==='f-dp') calc(); });
+
+/* ---------- peringatan saat status diubah ---------- */
+function hideAsk(){ clearTimeout(askToast.t); const a = $('#ask'); if(a) a.hidden = true; }
+function askToast(msg, acts){
+  const a = $('#ask'), b = a.querySelector('div'); a.querySelector('p').textContent = msg; b.innerHTML = '';
+  acts.forEach((x,i)=>{ const el = document.createElement('button'); el.type = 'button'; el.className = 'btn'+(i===0?' main':''); el.textContent = x.t;
+    el.addEventListener('click', ()=>{ hideAsk(); if(x.f) x.f(); }); b.appendChild(el); });
+  a.hidden = false; clearTimeout(askToast.t); askToast.t = setTimeout(hideAsk, 12000);
+}
+function focusGaransi(){
+  const el = $('#f-garansi'), sec = $('#sec-garansi'); if(!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  sec.classList.remove('flash'); void sec.offsetWidth; sec.classList.add('flash');
+  setTimeout(()=>{ try{ el.focus({preventScroll:true}); el.select(); }catch(e){} }, 400);
+}
+function statusHint(st){
+  if(st==='Selesai' && val('f-garansi').trim()===''){
+    askToast('Garansi belum diisi. Mau diisi sekarang?', [{t:'Isi garansi', f:focusGaransi}, {t:'Lewati'}]);
+  }else if(st==='Sudah diambil' && !$('#f-lunas').checked){
+    askToast('Pembayaran belum ditandai lunas. Centang "Status Pembayaran Lunas"?', [
+      {t:'Centang lunas', f:()=>{ $('#f-lunas').checked = true; calc(); toast('Ditandai lunas'); }}, {t:'Belum'}]);
+  }else hideAsk();
+}
+document.addEventListener('change', e => { if(e.target.id==='f-status') statusHint(e.target.value); });
 
 /* ---------- nota digital ---------- */
 const SHOP_DEF = {nama:'R PHONE REPAIR', alamat:'Jl. Merdeka Tegalaya dekat smk4 Kota Sukabumi', wa:'+6289509860411'};
