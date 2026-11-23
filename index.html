@@ -207,11 +207,11 @@ function rel(iso){
 function rp(n){ const v = Number(String(n).replace(/\D/g,'')); return v ? 'Rp ' + v.toLocaleString('id-ID') : ''; }
 function tone(s){ return s==='Selesai'||s==='Sudah diambil' ? 's-done' : s==='Batal' ? 's-bad' : (s==='Masuk'||s==='Dicek') ? 's-new' : 's-work'; }
 function waNum(hp){ let d = String(hp||'').replace(/\D/g,''); if(d.startsWith('0')) d = '62'+d.slice(1); return d; }
-function waLink(it){
-  const msg = 'Halo ' + (it.nama||'') + ', servis ' + (it.perangkat||'HP') + ' Anda (ID ' + it.id + ') statusnya: ' + it.status + '.' +
+function waText(it){
+  return 'Halo ' + (it.nama||'') + ', servis ' + (it.perangkat||'HP') + ' Anda (ID ' + it.id + ') statusnya: ' + it.status + '.' +
     '\nCek status kapan saja di ' + BLOG_URL + ' (isi ID + 4 digit terakhir nomor HP).';
-  return 'https://wa.me/' + waNum(it.hp) + '?text=' + encodeURIComponent(msg);
 }
+function waLink(it){ return 'https://wa.me/' + waNum(it.hp) + '?text=' + encodeURIComponent(waText(it)); }
 
 const FINAL = ['Selesai','Sudah diambil'];
 const P_DEV = ['Samsung A','Samsung M','Redmi','Redmi Note','Poco','Oppo A','Vivo Y','Realme C','Infinix Hot','Infinix Note','Tecno Spark','iPhone'];
@@ -326,14 +326,14 @@ function editSheet(id){
     '<div class="f"><label for="f-ket">Keterangan untuk pelanggan (tampil di riwayat saat status diubah)</label><input id="f-ket" autocomplete="off"/></div>'+
     '<div class="f"><label for="f-catatan">Catatan internal (tidak tampil di blog)</label><textarea id="f-catatan">'+h(it.catatan)+'</textarea></div>'+
     '<div class="acts"><button class="btn main" data-x="save" data-id="'+h(id)+'">Simpan</button>'+
-    '<a class="btn" target="_blank" rel="noopener" href="'+h(waLink(it))+'">Kirim WA</a>'+
+    '<button class="btn" data-x="nota" data-id="'+h(id)+'">Kirim WA + nota</button>'+
     '<button class="btn warn" data-x="del" data-id="'+h(id)+'">Hapus</button></div>');
   $('#sheet').dataset.status = it.status;
 }
 function doneSheet(it){
   openSheet('<div class="done"><p>Servis tersimpan. ID pelanggan:</p><div class="big">'+h(it.id)+'</div>'+
     '<p>Pelanggan cek di blog dengan ID ini + 4 digit terakhir nomor HP.</p>'+
-    '<div class="acts"><a class="btn main" target="_blank" rel="noopener" href="'+h(waLink(it))+'">Kirim ke WA pelanggan</a>'+
+    '<div class="acts"><button class="btn main" data-x="nota" data-id="'+h(it.id)+'">Kirim WA + nota</button>'+
     '<button class="btn" data-x="close">Selesai</button></div></div>');
 }
 
@@ -380,6 +380,7 @@ document.addEventListener('click', ev => {
       fotoSebelum:foto.b, fotoSesudah:foto.a});
     items.unshift(j.item); LS.set('rp_cache', JSON.stringify({items,statuses})); render(); doneSheet(j.item);
   });
+  if(x==='nota') return guarded(t, ()=>sendNota(items.find(i=>i.id===t.dataset.id)));
   if(x==='save') return guarded(t, async()=>{
     const id = t.dataset.id;
     const j = await api({action:'update', id, fields:{
@@ -483,6 +484,106 @@ document.addEventListener('change', async e => {
 });
 document.addEventListener('change', e => { if(e.target.id==='f-dis'){ $('#disbox').hidden = !e.target.checked; calc(); } if(e.target.id==='f-lunas') calc(); });
 document.addEventListener('input', e => { if(e.target.closest('#items') || e.target.id==='f-diskon' || e.target.id==='f-dp') calc(); });
+
+/* ---------- nota digital ---------- */
+const SHOP = {nama:'R PHONE REPAIR', alamat:'Jl. Merdeka Tegalaya dekat smk4 Kota Sukabumi', wa:'+6289509860411'};
+let LOGO = null;
+(function(){ const i = new Image(); i.onload = () => LOGO = i; i.src = 'logo.png'; })(); // opsional: taruh logo.png di folder yang sama
+function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function wrapT(c,t,x,y,w,lh){ let l=''; String(t).split(/\s+/).forEach(wd=>{ const tt=l?l+' '+wd:wd; if(c.measureText(tt).width>w && l){ c.fillText(l,x,y); y+=lh; l=wd; } else l=tt; }); if(l){ c.fillText(l,x,y); y+=lh; } return y; }
+function parseItems(it){ try{ const a = JSON.parse(it.items||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function notaCanvas(it){
+  const W=720, P=48, F='Inter,system-ui,Roboto,sans-serif', R = n => 'Rp ' + n.toLocaleString('id-ID');
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = 2600;
+  const c = cv.getContext('2d'), ls = v => { if('letterSpacing' in c) c.letterSpacing = v; };
+  c.fillStyle = '#fff'; c.fillRect(0,0,W,cv.height);
+
+  /* header */
+  const lh = LOGO ? Math.min(170, 560*LOGO.height/LOGO.width) : 0, lw = LOGO ? LOGO.width*lh/LOGO.height : 0;
+  const base = 44 + (LOGO ? lh+24 : 0), hh = base + 130 + 58 + 46;
+  const g = c.createLinearGradient(0,hh,W,0); g.addColorStop(0,'#00e5ff'); g.addColorStop(.5,'#4f7bff'); g.addColorStop(1,'#9b4dff');
+  c.fillStyle = g; c.fillRect(0,0,W,hh);
+  if(LOGO) c.drawImage(LOGO,(W-lw)/2,44,lw,lh);
+  c.textAlign = 'center'; c.fillStyle = '#fff'; c.font = '700 50px '+F; c.fillText(SHOP.nama, W/2, base+62);
+  c.font = '400 24px '+F; c.fillText(SHOP.alamat, W/2, base+108);
+  c.font = '700 26px '+F; const wa = 'WhatsApp: '+SHOP.wa, pw = c.measureText(wa).width+64;
+  c.fillStyle = '#fff'; rr(c,(W-pw)/2,base+134,pw,58,29); c.fill();
+  c.fillStyle = '#9b4dff'; c.fillText(wa, W/2, base+172);
+
+  /* invoice + status */
+  let y = hh + 60; c.textAlign = 'left';
+  const lab = (t,x,yy,al) => { c.textAlign = al||'left'; c.fillStyle = '#999'; c.font = '600 20px '+F; ls('3px'); c.fillText(t,x,yy); ls('0px'); };
+  lab('INVOICE',P,y);
+  c.fillStyle = '#111'; c.font = '800 46px '+F; c.fillText('#'+it.id, P, y+52);
+  const st = String(it.status||'').toUpperCase(), sc = (it.status==='Batal') ? '#e53935' : FINAL.indexOf(it.status)>=0 ? '#4caf50' : '#ff9800';
+  c.font = '800 24px '+F; ls('2px'); const sw = c.measureText(st).width+56; ls('0px');
+  c.fillStyle = sc; rr(c,W-P-sw,y+4,sw,58,29); c.fill();
+  c.fillStyle = '#fff'; c.textAlign = 'center'; ls('2px'); c.fillText(st, W-P-sw/2, y+42); ls('0px');
+  y += 100; c.fillStyle = '#e6e6e6'; c.fillRect(P,y,W-2*P,2); y += 52;
+
+  /* pelanggan + tanggal */
+  lab('PELANGGAN',P,y); lab('TANGGAL',W-P,y,'right');
+  c.textAlign = 'left'; c.fillStyle = '#222'; c.font = '700 34px '+F; c.fillText(it.nama||'-', P, y+48);
+  const d = new Date(it.masuk), tgl = isNaN(d) ? '' : d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Jakarta'});
+  c.textAlign = 'right'; c.font = '400 30px '+F; c.fillText(tgl, W-P, y+48);
+  c.textAlign = 'left'; c.fillStyle = '#777'; c.font = '400 26px '+F; c.fillText(it.hp ? '+'+waNum(it.hp) : '', P, y+90);
+  y += 128; c.fillStyle = '#e6e6e6'; c.fillRect(P,y,W-2*P,2); y += 52;
+
+  /* rincian servis */
+  const head = t => { c.textAlign = 'left'; c.fillStyle = '#00b8d4'; c.font = '800 22px '+F; ls('4px'); c.fillText(t,P,y); ls('0px'); y += 26; };
+  let rows = parseItems(it).filter(i=>i.name||i.part||i.jasa||i.modal).map(i=>[i.name||i.part||'Servis', (Number(i.jasa)||0)+(Number(i.modal)||0)]);
+  const tot0 = rows.reduce((a,r)=>a+r[1],0);
+  if(!rows.length) rows = [[it.kerusakan||it.keluhan||'Servis', num(it.biaya)]];
+  const sub = rows.reduce((a,r)=>a+r[1],0), dis = num(it.diskon), net = Math.max(0, sub-dis), dp = num(it.dp), lunas = it.lunas==='Ya';
+  head('RINCIAN SERVIS');
+  const bh = 36+46+rows.length*54+14;
+  c.fillStyle = '#f5f6f8'; rr(c,P,y,W-2*P,bh,26); c.fill();
+  c.fillStyle = '#9b4dff'; c.font = '800 28px '+F; ls('1px'); c.fillText(String(it.perangkat||'').toUpperCase(), P+32, y+60); ls('0px');
+  let ry = y+112;
+  rows.forEach(r=>{ c.fillStyle = '#222'; c.font = '400 28px '+F; c.textAlign = 'left'; c.fillText(r[0].slice(0,26), P+32, ry);
+    c.textAlign = 'right'; c.font = '700 28px '+F; c.fillText(R(r[1]), W-P-32, ry); ry += 54; });
+  y += bh + 56;
+
+  /* rincian pembayaran */
+  head('RINCIAN PEMBAYARAN');
+  const pr = [];
+  if(dis>0) pr.push(['Subtotal',R(sub)],['Diskon','- '+R(dis)]);
+  pr.push(['Total',R(net),true]);
+  if(dp>0) pr.push(['Uang muka (DP)',R(dp)]);
+  pr.push(lunas ? ['Status','LUNAS',true,'#4caf50'] : ['Sisa bayar',R(Math.max(0,net-dp)),true,'#e53935']);
+  const ph = 36+pr.length*54+10;
+  c.fillStyle = '#f5f6f8'; rr(c,P,y,W-2*P,ph,26); c.fill();
+  let py = y+62;
+  pr.forEach(r=>{ c.textAlign = 'left'; c.fillStyle = '#555'; c.font = (r[2]?'700':'400')+' 27px '+F; c.fillText(r[0], P+32, py);
+    c.textAlign = 'right'; c.fillStyle = r[3]||'#222'; c.font = '700 28px '+F; c.fillText(r[1], W-P-32, py); py += 54; });
+  y += ph + 50;
+
+  /* garansi */
+  const gt = garText(it);
+  if(gt[0]==='ok'){ head('GARANSI'); c.fillStyle = '#222'; c.font = '600 26px '+F; c.fillText(gt[1], P, y+8); y += 44;
+    if(it.ketgaransi){ c.fillStyle = '#777'; c.font = '400 23px '+F; y = wrapT(c,it.ketgaransi,P,y+4,W-2*P,32); } y += 20; }
+
+  /* footer */
+  c.textAlign = 'center'; c.fillStyle = '#888'; c.font = '400 22px '+F;
+  c.fillText('Terima kasih telah mempercayakan servis HP Anda.', W/2, y+20);
+  c.fillText('Cek status: '+BLOG_URL.replace(/^https?:\/\//,'')+'  (ID '+it.id+')', W/2, y+56);
+  y += 100;
+  const out = document.createElement('canvas'); out.width = W; out.height = y; out.getContext('2d').drawImage(cv,0,0);
+  return out;
+}
+async function sendNota(it){
+  if(!it) return;
+  const cv = notaCanvas(it), blob = await new Promise(r=>cv.toBlob(r,'image/png'));
+  const file = new File([blob], 'nota-'+it.id+'.png', {type:'image/png'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], text:waText(it)}); return; }
+    catch(e){ if(e && e.name==='AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('Nota tersimpan di HP. Lampirkan di chat WA.');
+  setTimeout(()=>window.open(waLink(it),'_blank'), 600);
+}
 function fillHp(){ const n = val('f-nama').trim().toLowerCase(); if(!n || val('f-hp').trim()) return; const m = items.find(i=>String(i.nama).trim().toLowerCase()===n && i.hp); if(m) $('#f-hp').value = m.hp; }
 document.addEventListener('input', e => {
   const id = e.target.id;
