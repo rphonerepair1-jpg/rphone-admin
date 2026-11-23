@@ -136,6 +136,7 @@ header.bar{position:sticky;top:0;z-index:10;padding:calc(10px + env(safe-area-in
 .tot b{font-size:1.15rem;color:var(--g)}
 .sisa{margin:-4px 0 10px;text-align:right;font-size:.78rem;color:var(--muted)}
 .ck{display:flex;align-items:center;gap:10px;margin:0 0 10px;color:var(--muted);font-size:.88rem}
+.hint{margin:0 0 12px;font-size:.78rem;color:var(--muted)}
 .ck input{width:20px;height:20px;accent-color:var(--g)}
 </style>
 </head>
@@ -158,6 +159,7 @@ header.bar{position:sticky;top:0;z-index:10;padding:calc(10px + env(safe-area-in
     <div class="row">
       <h1>Servis<small id="cnt"></small></h1>
       <button class="ib" id="sync" aria-label="Muat ulang data"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></button>
+      <button class="ib" id="cfg" aria-label="Pengaturan toko"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       <button class="ib" id="out" aria-label="Keluar"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
     </div>
     <div class="search"><input id="q" type="search" placeholder="Cari ID, nama, perangkat, atau HP" aria-label="Cari servis"/></div>
@@ -255,6 +257,7 @@ async function load(manual){
   try{
     const j = await api({action:'list'});
     items = j.items; statuses = j.statuses;
+    if(j.settings && Object.keys(j.settings).length) setShop(j.settings);
     LS.set('rp_cache', JSON.stringify({items, statuses}));
     $('#net').hidden = true; render();
     if(manual) toast('Data diperbarui');
@@ -349,6 +352,7 @@ document.addEventListener('click', ev => {
   if(t.id==='fab') return newSheet();
   if(t.id==='sync') return load(true);
   if(t.id==='out') return logout('');
+  if(t.id==='cfg') return shopSheet();
   if(t.classList.contains('card')) return editSheet(t.dataset.id);
   if(t.closest('#chips')){ filter = t.dataset.s; return render(); }
   if(t.dataset.pick){ pickContact(); return; }
@@ -379,6 +383,14 @@ document.addEventListener('click', ev => {
       ketgaransi: lk ? lk.ketgaransi : 'Garansi untuk kerusakan yang sama. Tidak berlaku bila jatuh/terkena air.',
       fotoSebelum:foto.b, fotoSesudah:foto.a});
     items.unshift(j.item); LS.set('rp_cache', JSON.stringify({items,statuses})); render(); doneSheet(j.item);
+  });
+  if(x==='saveshop') return guarded(t, async()=>{
+    const d = waNum(val('s-wa')), o = {nama:val('s-nama').trim(), alamat:val('s-alamat').trim(), wa:d ? '+'+d : ''};
+    if(!o.nama) return toast('Nama toko tidak boleh kosong', true);
+    if(d && d.length < 9) return toast('Nomor WA terlalu pendek', true);
+    setShop(o); closeSheet();
+    try{ await api({action:'setset', shop:o}); toast('Pengaturan tersimpan'); }
+    catch(e){ toast('Tersimpan di HP ini, belum tersinkron ke server', true); }
   });
   if(x==='nota') return guarded(t, ()=>sendNota(items.find(i=>i.id===t.dataset.id)));
   if(x==='save') return guarded(t, async()=>{
@@ -486,7 +498,17 @@ document.addEventListener('change', e => { if(e.target.id==='f-dis'){ $('#disbox
 document.addEventListener('input', e => { if(e.target.closest('#items') || e.target.id==='f-diskon' || e.target.id==='f-dp') calc(); });
 
 /* ---------- nota digital ---------- */
-const SHOP = {nama:'R PHONE REPAIR', alamat:'Jl. Merdeka Tegalaya dekat smk4 Kota Sukabumi', wa:'+6289509860411'};
+const SHOP_DEF = {nama:'R PHONE REPAIR', alamat:'Jl. Merdeka Tegalaya dekat smk4 Kota Sukabumi', wa:'+6289509860411'};
+let SHOP = Object.assign({}, SHOP_DEF);
+function setShop(o){ SHOP = Object.assign({}, SHOP_DEF, Object.fromEntries(Object.entries(o||{}).filter(([k,v])=>v))); LS.set('rp_shop', JSON.stringify(SHOP)); }
+try{ setShop(JSON.parse(LS.get('rp_shop')||'null')); }catch(e){}
+function shopSheet(){
+  openSheet('<h2>Pengaturan toko</h2><div class="f"><label for="s-nama">Nama toko</label><input id="s-nama" autocomplete="off" value="'+h(SHOP.nama)+'"/></div>'+
+    '<div class="f"><label for="s-alamat">Alamat</label><textarea id="s-alamat" rows="2">'+h(SHOP.alamat)+'</textarea></div>'+
+    '<div class="f"><label for="s-wa">Nomor WhatsApp toko</label><input id="s-wa" inputmode="tel" autocomplete="off" placeholder="Contoh: 08950xxxxxxx" value="'+h(SHOP.wa)+'"/></div>'+
+    '<p class="hint">Tampil di header nota yang dikirim ke pelanggan.</p>'+
+    '<div class="acts"><button class="btn" data-x="close">Batal</button><button class="btn main" data-x="saveshop">Simpan</button></div>');
+}
 let LOGO = null;
 (function(){ const i = new Image(); i.onload = () => LOGO = i; i.src = 'logo.png'; })(); // opsional: taruh logo.png di folder yang sama
 function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
