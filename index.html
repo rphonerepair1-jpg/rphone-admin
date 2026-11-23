@@ -226,10 +226,11 @@ const DEF_TPL = {
   'Batal': 'Halo {nama}, servis {perangkat} Anda (ID {id}) dibatalkan.'
 };
 const TPL_FALLBACK = 'Halo {nama}, servis {perangkat} Anda (ID {id}) statusnya: {status}.';
-const TPL_TAIL = '\nCek status kapan saja di {link} (isi ID + 4 digit terakhir nomor HP).\n{toko}';
+const TPL_TAIL = '\nCek status servis kapan saja, tinggal klik (tanpa isi ID): {link}\n{toko}';
 function tplOf(st){ return ((typeof SHOP!=='undefined' && SHOP.tpl) || {})[st] || DEF_TPL[st] || TPL_FALLBACK; }
+function cekLink(it){ const k = digits(it.hp).slice(-4); return BLOG_URL + '/?id=' + encodeURIComponent(it.id) + (k.length===4 ? '&k='+k : ''); }
 function waText(it){
-  const v = {nama:it.nama||'', id:it.id, perangkat:it.perangkat||'HP', status:it.status, biaya:rp(it.biaya)||'-', link:BLOG_URL, toko:(typeof SHOP!=='undefined'&&SHOP.nama)||''};
+  const v = {nama:it.nama||'', id:it.id, perangkat:it.perangkat||'HP', status:it.status, biaya:rp(it.biaya)||'-', link:cekLink(it), toko:(typeof SHOP!=='undefined'&&SHOP.nama)||''};
   const fill = t => t.replace(/\{(\w+)\}/g, (m,k)=> k in v ? v[k] : m);
   let t = tplOf(it.status);
   if(!/\{link\}/.test(t)) t += TPL_TAIL.replace(/\n\{toko\}$/, '') ;
@@ -579,7 +580,7 @@ function shopSheet(){
     '<div class="f"><label for="s-wa">Nomor WhatsApp toko</label><input id="s-wa" inputmode="tel" autocomplete="off" placeholder="Contoh: 08950xxxxxxx" value="'+h(SHOP.wa)+'"/></div>'+
     '<p class="hint">Tampil di header nota yang dikirim ke pelanggan.</p>'+
     '<h3 class="tplh">Template pesan WA per status</h3>'+
-    '<p class="hint">Dipakai saat tombol WA ditekan. Kosongkan kotak untuk memakai teks bawaan. Kode yang bisa dipakai: {nama} {id} {perangkat} {status} {biaya} {link} {toko}. Link cek status otomatis ditambahkan di akhir kalau {link} tidak ditulis.</p>'+
+    '<p class="hint">Dipakai saat tombol WA ditekan. Kosongkan kotak untuk memakai teks bawaan. Kode yang bisa dipakai: {nama} {id} {perangkat} {status} {biaya} {link} {toko}. {link} berisi tautan cek status yang langsung terisi otomatis (ID + 4 digit HP). Ditambahkan di akhir kalau {link} tidak ditulis.</p>'+
     statuses.map(st=>'<div class="f"><label>'+h(st)+'</label><textarea rows="3" data-tpl="'+h(st)+'" data-def="'+h(DEF_TPL[st]||TPL_FALLBACK)+'">'+h((SHOP.tpl||{})[st]||DEF_TPL[st]||TPL_FALLBACK)+'</textarea></div>').join('')+
     '<button type="button" class="btn" data-x="tplreset" style="width:100%;margin:0 0 12px">Kembalikan semua teks bawaan</button>'+
     '<div class="acts"><button class="btn" data-x="close">Batal</button><button class="btn main" data-x="saveshop">Simpan</button></div>');
