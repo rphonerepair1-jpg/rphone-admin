@@ -25,7 +25,7 @@
  --line:rgba(6,122,75,.18);--line2:rgba(6,122,75,.45)}}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans);-webkit-tap-highlight-color:transparent}
-button,input,textarea{font:inherit;color:inherit}
+button,input,textarea,select{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--g);outline-offset:2px}
 [hidden]{display:none!important}
@@ -40,8 +40,8 @@ button{cursor:pointer}
 /* form */
 label{display:block;margin:0 0 5px;color:var(--muted);font-size:.8rem}
 .f{margin:0 0 14px}
-input,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);outline:none}
-input:focus,textarea:focus{border-color:var(--g)}
+input,textarea,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--g)}
 textarea{min-height:76px;resize:vertical}
 .chk{display:flex;align-items:center;gap:8px;margin:0 0 16px;color:var(--muted);font-size:.85rem}
 .chk input{width:auto}
@@ -112,6 +112,31 @@ header.bar{position:sticky;top:0;z-index:10;padding:calc(10px + env(safe-area-in
 .sug{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
 .sug .chip{padding:4px 10px;font-size:.74rem}
 .stamp b.ok{color:var(--g)}.stamp b.no{color:var(--red)}
+
+/* form servis baru */
+.sec{margin:0 0 12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}
+.sec h3{margin:0 0 12px;padding-left:8px;border-left:3px solid var(--g);font:700 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--g)}
+.sec input,.sec textarea,.sec select{background:var(--panel)}
+.sec .f{margin:0 0 10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rowp{display:flex;gap:8px;align-items:stretch;margin:0 0 10px}
+.rowp input{flex:1 1 auto;min-width:0}
+.rowp .btn{flex:0 0 auto;padding:0 16px}
+.photos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ph{display:grid;place-items:center;aspect-ratio:4/3;border:1px dashed var(--line2);border-radius:12px;background:var(--panel) center/cover no-repeat;font-size:1.8rem;color:var(--muted);cursor:pointer}
+.ph.on span{display:none}
+.phl{margin:4px 0 0;text-align:center;font-size:.78rem;color:var(--muted)}
+.it{margin:0 0 10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.it .itop{display:flex;justify-content:space-between;align-items:center;margin:0 0 8px;font:700 .72rem var(--mono);color:var(--g)}
+.it .x{border:0;background:none;color:var(--red);font-size:1.4rem;line-height:1;padding:0 4px}
+.it .chips{margin:0 0 8px}
+.it input{background:var(--panel2)}
+.addi{width:100%;margin:2px 0 10px;padding:12px;border:1px dashed var(--line2);border-radius:12px;background:none;color:var(--g);font:700 .82rem var(--mono);letter-spacing:.04em}
+.tot{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 10px;padding-top:10px;border-top:1px solid var(--line);font:700 .74rem var(--mono);color:var(--muted)}
+.tot b{font-size:1.15rem;color:var(--g)}
+.sisa{margin:-4px 0 10px;text-align:right;font-size:.78rem;color:var(--muted)}
+.ck{display:flex;align-items:center;gap:10px;margin:0 0 10px;color:var(--muted);font-size:.88rem}
+.ck input{width:20px;height:20px;accent-color:var(--g)}
 </style>
 </head>
 <body>
@@ -272,7 +297,8 @@ function formFields(it, isNew){
   const lk = items.find(i=>i.ketgaransi);
   const gv = isNew ? 30 : (it.garansi==null ? '' : it.garansi);
   const kv = isNew ? (lk ? lk.ketgaransi : 'Garansi untuk kerusakan yang sama. Tidak berlaku bila jatuh/terkena air.') : (it.ketgaransi||'');
-  return '<div class="two"><div class="f"><label for="f-nama">Nama pelanggan</label><input id="f-nama" list="dl-n" autocomplete="off" autocapitalize="words" value="'+h(it.nama)+'"/></div>'+
+  return '<div class="sug" style="margin:0 0 8px"><button type="button" class="chip" data-pick="1">&#128222; Ambil dari kontak HP</button></div>'+
+    '<div class="two"><div class="f"><label for="f-nama">Nama pelanggan</label><input id="f-nama" list="dl-n" autocomplete="off" autocapitalize="words" value="'+h(it.nama)+'"/></div>'+
     '<div class="f"><label for="f-hp">Nomor HP</label><input id="f-hp" inputmode="tel" autocomplete="off" value="'+h(it.hp)+'"/></div></div>'+
     '<div class="f"><label for="f-perangkat">Perangkat</label><input id="f-perangkat" list="dl-d" autocomplete="off" placeholder="Contoh: Samsung A12" value="'+h(it.perangkat)+'"/></div>'+
     '<div class="f"><label for="f-keluhan">Keluhan</label><input id="f-keluhan" list="dl-k" autocomplete="off" value="'+h(it.keluhan)+'"/><div class="sug">'+P_KEL.slice(0,6).map(k=>'<button type="button" class="chip" data-k="'+h(k)+'">'+h(k)+'</button>').join('')+'</div></div>'+
@@ -286,9 +312,10 @@ function formFields(it, isNew){
 const val = id => ($('#'+id)||{}).value || '';
 
 function newSheet(){
-  openSheet('<h2>Servis baru</h2>'+formFields(null,true)+
-    '<div class="acts"><button class="btn" data-x="close">Batal</button><button class="btn main" data-x="add">Simpan</button></div>');
-  $('#f-nama').focus();
+  foto = {b:'', a:''};
+  openSheet('<h2>Form Servis HP</h2>'+newForm()+
+    '<div class="acts"><button class="btn" data-x="close">Batal</button><button class="btn main" data-x="add">Simpan data</button></div>');
+  addItem(); calc();
 }
 function editSheet(id){
   const it = items.find(i=>i.id===id); if(!it) return;
@@ -324,7 +351,11 @@ document.addEventListener('click', ev => {
   if(t.id==='out') return logout('');
   if(t.classList.contains('card')) return editSheet(t.dataset.id);
   if(t.closest('#chips')){ filter = t.dataset.s; return render(); }
+  if(t.dataset.pick){ pickContact(); return; }
   if(t.dataset.k){ const e = $('#f-keluhan'); e.value = e.value.trim() ? e.value.trim()+', '+t.dataset.k : t.dataset.k; return; }
+  if(t.dataset.j){ t.closest('.it').querySelector('.i-harga').value = t.dataset.j; return calc(); }
+  if(t.dataset.x==='additem') return addItem();
+  if(t.dataset.x==='delitem'){ const b=$('#items'); if(b.children.length>1) t.closest('.it').remove(); else b.querySelectorAll('input').forEach(i=>i.value=''); b.querySelectorAll('.itop span').forEach((x,n)=>x.textContent='ITEM #'+(n+1)); return calc(); }
   if(t.dataset.g){ $('#f-garansi').value = t.dataset.g; return; }
   if(t.dataset.b){ $('#f-biaya').value = t.dataset.b; return; }
   if(t.dataset.st){
@@ -335,9 +366,18 @@ document.addEventListener('click', ev => {
   const x = t.dataset.x;
   if(x==='close') return closeSheet();
   if(x==='add') return guarded(t, async()=>{
-    if(!val('f-nama').trim() || !val('f-perangkat').trim()) return toast('Isi nama dan perangkat dulu', true);
+    const merk = val('f-merk'), tipe = val('f-tipe').trim(), perangkat = (merk+' '+tipe).trim();
+    if(!val('f-nama').trim() || !perangkat) return toast('Isi nama dan merk/tipe HP dulu', true);
     if(val('f-hp').replace(/\D/g,'').length < 4) return toast('Nomor HP minimal 4 digit', true);
-    const j = await api({action:'add', nama:val('f-nama'), hp:val('f-hp'), perangkat:val('f-perangkat'), keluhan:val('f-keluhan'), biaya:val('f-biaya'), garansi:val('f-garansi'), ketgaransi:val('f-ketgaransi'), kerusakan:val('f-kerusakan'), rincian:val('f-rincian')});
+    const its = readItems(), c = calc(), names = its.map(i=>i.name).filter(Boolean).join(', ');
+    const lk = items.find(i=>i.ketgaransi);
+    const j = await api({action:'add', nama:val('f-nama'), hp:val('f-hp'), alamat:val('f-alamat'), merk, tipe, kunci:val('f-kunci'),
+      perangkat, keluhan:names, kerusakan:names,
+      rincian:its.filter(i=>i.name||i.part).map(i=>(i.name||i.part)+' '+rp(i.jasa+i.modal)).join(' + '),
+      items:JSON.stringify(its), diskon:c.dis, dp:c.dp, biaya:c.net||'', lunas:$('#f-lunas').checked,
+      status:val('f-status'), catatan:val('f-catatan'),
+      ketgaransi: lk ? lk.ketgaransi : 'Garansi untuk kerusakan yang sama. Tidak berlaku bila jatuh/terkena air.',
+      fotoSebelum:foto.b, fotoSesudah:foto.a});
     items.unshift(j.item); LS.set('rp_cache', JSON.stringify({items,statuses})); render(); doneSheet(j.item);
   });
   if(x==='save') return guarded(t, async()=>{
@@ -362,6 +402,87 @@ function bsug(){
   const m = d && (items.find(i=>ok(i) && k && String(i.keluhan).trim().toLowerCase()===k) || items.find(ok));
   box.innerHTML = m ? '<button type="button" class="chip" data-b="'+h(digits(m.biaya))+'">Biaya terakhir '+h(rp(m.biaya))+' ('+h(m.keluhan||m.perangkat)+')</button>' : '';
 }
+async function pickContact(){
+  if(!('contacts' in navigator) || !('ContactsManager' in window)) return toast('Browser ini belum mendukung ambil kontak. Pakai Chrome di Android.', true);
+  try{
+    const r = await navigator.contacts.select(['name','tel'], {multiple:false});
+    if(!r || !r.length) return;
+    const c = r[0], nm = (c.name && c.name[0] || '').trim(), tl = c.tel && c.tel[0];
+    if(nm) $('#f-nama').value = nm;
+    if(tl){ const d = digits(tl); $('#f-hp').value = d.startsWith('62') ? '0'+d.slice(2) : d; }
+    bsug();
+  }catch(err){ if(err && err.name!=='AbortError') toast('Gagal membuka kontak', true); }
+}
+
+/* ---------- form servis baru ---------- */
+const P_MERK = ['Samsung','Xiaomi','Redmi','Poco','Oppo','Vivo','Realme','Infinix','Tecno','iPhone','Lainnya'];
+const P_PART = ['LCD','Baterai','Konektor charger','Flexibel power','Flexibel volume','Speaker','Mic','Kamera depan','Kamera belakang','Back cover','Touchscreen','IC power','Tanpa part'];
+let foto = {b:'', a:''};
+const num = v => Number(digits(v)) || 0;
+function itemHtml(n){
+  return '<div class="it"><div class="itop"><span>ITEM #'+n+'</span><button type="button" class="x" data-x="delitem" aria-label="Hapus item">&times;</button></div>'+
+    '<div class="f"><input class="i-part" list="dl-p" autocomplete="off" placeholder="Sparepart (stok)"/></div>'+
+    '<div class="f"><input class="i-name" list="dl-k" autocomplete="off" placeholder="Kerusakan / Jasa"/></div>'+
+    '<div class="chips">'+[30,40,50,75,100,150].map(k=>'<button type="button" class="chip" data-j="'+(k*1000)+'">'+k+'RB</button>').join('')+'</div>'+
+    '<div class="pair"><input class="i-harga" inputmode="numeric" placeholder="Harga Jasa"/><input class="i-modal" inputmode="numeric" placeholder="Modal Part"/></div></div>';
+}
+function addItem(){ const box = $('#items'); box.insertAdjacentHTML('beforeend', itemHtml(box.children.length+1)); }
+function readItems(){
+  return [...document.querySelectorAll('#items .it')].map(e=>({
+    part:e.querySelector('.i-part').value.trim(), name:e.querySelector('.i-name').value.trim(),
+    jasa:num(e.querySelector('.i-harga').value), modal:num(e.querySelector('.i-modal').value)
+  })).filter(i=>i.part||i.name||i.jasa||i.modal);
+}
+function calc(){
+  const tot = readItems().reduce((a,i)=>a+i.jasa+i.modal,0);
+  const dis = ($('#f-dis')&&$('#f-dis').checked) ? Math.min(tot, num(val('f-diskon'))) : 0;
+  const net = tot-dis, dp = num(val('f-dp'));
+  $('#f-total').textContent = 'Rp ' + net.toLocaleString('id-ID');
+  $('#f-sisa').textContent = (dp && !$('#f-lunas').checked) ? 'Sisa bayar Rp ' + Math.max(0,net-dp).toLocaleString('id-ID') : '';
+  return {tot, dis, net, dp};
+}
+function newForm(){
+  const sel = (id,ph,list) => '<select id="'+id+'"><option value="">'+ph+'</option>'+list.map(v=>'<option>'+h(v)+'</option>').join('')+'</select>';
+  return '<div class="sec"><h3>Informasi pelanggan</h3>'+
+    '<div class="f"><input id="f-nama" list="dl-n" autocomplete="off" autocapitalize="words" placeholder="Nama Pelanggan (Umum)"/></div>'+
+    '<div class="rowp"><input id="f-hp" inputmode="tel" autocomplete="off" placeholder="Nomor HP WhatsApp"/><button type="button" class="btn" data-pick="1">AMBIL</button></div>'+
+    '<div class="f"><input id="f-alamat" autocomplete="off" placeholder="Alamat"/></div></div>'+
+    '<div class="sec"><h3>Detail perangkat</h3>'+
+    '<div class="f">'+sel('f-merk','Merk HP',P_MERK)+'</div>'+
+    '<div class="f"><input id="f-tipe" list="dl-t" autocomplete="off" placeholder="Tipe HP"/></div>'+
+    '<div class="f"><label for="f-kunci">Tipe Kunci Layar</label><select id="f-kunci"><option>None</option><option>Pola</option><option>PIN</option><option>Password</option></select></div></div>'+
+    '<div class="sec"><h3>Dokumentasi unit (opsional)</h3><div class="photos">'+
+    ['b','a'].map(k=>'<div><label class="ph" id="ph-'+k+'"><span>&#128247;</span><input type="file" accept="image/*" data-foto="'+k+'" hidden/></label><div class="phl">'+(k==='b'?'Sebelum':'Sesudah')+'</div></div>').join('')+'</div></div>'+
+    '<div class="sec"><h3>Rincian perbaikan</h3><div id="items"></div>'+
+    '<button type="button" class="addi" data-x="additem">+ TAMBAH KERUSAKAN LAIN (+)</button>'+
+    '<div class="tot"><span>TOTAL ESTIMASI BIAYA</span><b id="f-total">Rp 0</b></div>'+
+    '<label class="ck"><input type="checkbox" id="f-dis"/> Gunakan Diskon</label>'+
+    '<div class="f" id="disbox" hidden><input id="f-diskon" inputmode="numeric" placeholder="Nominal diskon (Rp)"/></div>'+
+    '<div class="f"><input id="f-dp" inputmode="numeric" placeholder="Uang Muka (DP)"/></div><div class="sisa" id="f-sisa"></div></div>'+
+    '<div class="sec"><h3>Status &amp; pembayaran</h3>'+
+    '<div class="f"><select id="f-status">'+statuses.map(x=>'<option>'+h(x)+'</option>').join('')+'</select></div>'+
+    '<label class="ck"><input type="checkbox" id="f-lunas"/> Status Pembayaran Lunas</label>'+
+    '<div class="f"><textarea id="f-catatan" rows="2" placeholder="Catatan Teknisi"></textarea></div></div>'+
+    dl('dl-n',uniq(items.map(i=>i.nama)))+dl('dl-t',uniq(items.map(i=>i.tipe)))+dl('dl-k',uniq(items.map(i=>i.kerusakan).concat(P_KEL)))+
+    dl('dl-p',uniq(P_PART.concat(items.flatMap(i=>{ try{ return JSON.parse(i.items||'[]').map(x=>x.part); }catch(e){ return []; } }))));
+}
+function shrink(file, max){
+  return new Promise((res,rej)=>{
+    const im = new Image(), u = URL.createObjectURL(file);
+    im.onload = () => { const r = Math.min(1, max/Math.max(im.width,im.height)), c = document.createElement('canvas');
+      c.width = Math.round(im.width*r); c.height = Math.round(im.height*r); c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      URL.revokeObjectURL(u); res(c.toDataURL('image/jpeg',.7)); };
+    im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('img')); };
+    im.src = u;
+  });
+}
+document.addEventListener('change', async e => {
+  const k = e.target.dataset && e.target.dataset.foto; if(!k || !e.target.files[0]) return;
+  try{ const d = await shrink(e.target.files[0], 1000); foto[k] = d; const p = $('#ph-'+k); p.style.backgroundImage = 'url('+d+')'; p.classList.add('on'); }
+  catch(err){ toast('Foto gagal dibaca', true); }
+});
+document.addEventListener('change', e => { if(e.target.id==='f-dis'){ $('#disbox').hidden = !e.target.checked; calc(); } if(e.target.id==='f-lunas') calc(); });
+document.addEventListener('input', e => { if(e.target.closest('#items') || e.target.id==='f-diskon' || e.target.id==='f-dp') calc(); });
 function fillHp(){ const n = val('f-nama').trim().toLowerCase(); if(!n || val('f-hp').trim()) return; const m = items.find(i=>String(i.nama).trim().toLowerCase()===n && i.hp); if(m) $('#f-hp').value = m.hp; }
 document.addEventListener('input', e => {
   const id = e.target.id;
