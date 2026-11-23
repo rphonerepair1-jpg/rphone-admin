@@ -329,14 +329,16 @@ function editSheet(id){
     '<div class="f"><label for="f-ket">Keterangan untuk pelanggan (tampil di riwayat saat status diubah)</label><input id="f-ket" autocomplete="off"/></div>'+
     '<div class="f"><label for="f-catatan">Catatan internal (tidak tampil di blog)</label><textarea id="f-catatan">'+h(it.catatan)+'</textarea></div>'+
     '<div class="acts"><button class="btn main" data-x="save" data-id="'+h(id)+'">Simpan</button>'+
-    '<button class="btn" data-x="nota" data-id="'+h(id)+'">Kirim WA + nota</button>'+
+    '<a class="btn" target="_blank" rel="noopener" href="'+h(waLink(it))+'">WA teks</a>'+
+    '<button class="btn" data-x="nota" data-id="'+h(id)+'">WA teks + nota</button>'+
     '<button class="btn warn" data-x="del" data-id="'+h(id)+'">Hapus</button></div>');
   $('#sheet').dataset.status = it.status;
 }
 function doneSheet(it){
   openSheet('<div class="done"><p>Servis tersimpan. ID pelanggan:</p><div class="big">'+h(it.id)+'</div>'+
     '<p>Pelanggan cek di blog dengan ID ini + 4 digit terakhir nomor HP.</p>'+
-    '<div class="acts"><button class="btn main" data-x="nota" data-id="'+h(it.id)+'">Kirim WA + nota</button>'+
+    '<div class="acts"><button class="btn main" data-x="nota" data-id="'+h(it.id)+'">WA teks + nota</button>'+
+    '<a class="btn" target="_blank" rel="noopener" href="'+h(waLink(it))+'">WA teks saja</a>'+
     '<button class="btn" data-x="close">Selesai</button></div></div>');
 }
 
