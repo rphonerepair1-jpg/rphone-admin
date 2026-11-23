@@ -71,18 +71,23 @@ header.bar{position:sticky;top:0;z-index:10;padding:calc(10px + env(safe-area-in
 /* list */
 #list{display:grid;gap:10px;padding:14px 0 110px}
 @media(min-width:720px){#list{grid-template-columns:1fr 1fr}}
-.card{width:100%;text-align:left;padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.card{display:flex;align-items:stretch;gap:8px;position:relative;width:100%;padding:14px 8px 14px 18px;border:1px solid var(--line);border-radius:20px;background:var(--panel);overflow:hidden;cursor:pointer;text-align:left}
+.card::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:5px;border-radius:0 4px 4px 0;background:var(--c,var(--muted))}
 .card:hover{border-color:var(--line2)}
-.card .t{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:0 0 4px}
-.card .id{font:700 .8rem var(--mono);color:var(--g)}
-.card .n{font-weight:700}
-.card .d{color:var(--muted);font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.card .u{margin-top:6px;color:var(--muted);font-size:.75rem}
-.badge{padding:3px 9px;border-radius:999px;border:1px solid var(--line);font-size:.72rem;white-space:nowrap}
-.s-done{color:var(--g);border-color:var(--line2);background:rgba(var(--gl),.1)}
-.s-work{color:var(--amber);border-color:rgba(255,180,84,.45);background:rgba(255,180,84,.1)}
-.s-bad{color:var(--red);border-color:rgba(255,95,87,.45);background:rgba(255,95,87,.1)}
-.s-new{color:var(--ink)}
+.cmain{flex:1 1 auto;min-width:0}
+.card .t{display:flex;gap:10px;align-items:center;margin:0 0 4px}
+.card .id{font:700 .85rem var(--mono);color:#22b8cf}
+.pill{padding:5px 13px;border-radius:999px;background:var(--c,var(--muted));color:#000;font:800 .68rem var(--sans);letter-spacing:.02em;white-space:nowrap}
+.card .n{font-weight:700;font-size:1.15rem;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .d{color:var(--muted);font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .info{margin-top:6px;font-size:.82rem;font-weight:600}
+.info.warn{color:var(--amber)}.info.ok{color:#4caf50}.info.bad{color:var(--red)}
+.card .u{display:flex;align-items:center;gap:7px;margin-top:8px;color:var(--muted);font-size:.85rem}
+.card .u svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+.cact{flex:0 0 auto;width:84px;display:flex;flex-direction:column;justify-content:space-around;align-items:center}
+.ca{min-height:32px;padding:4px 6px;border:0;background:none;font:800 .74rem var(--sans);letter-spacing:.1em}
+.ca.pesan{color:#22d3ee}.ca.struk{color:#a855f7}.ca.ingat{color:var(--amber)}
+.ca:active{opacity:.55}
 .empty{grid-column:1/-1;padding:34px 10px;text-align:center;color:var(--muted)}
 #fab{position:fixed;right:max(16px,calc(50% - 464px));bottom:calc(18px + env(safe-area-inset-bottom));z-index:12;min-height:52px;padding:0 20px;border:0;border-radius:14px;background:var(--g);color:var(--on-g);font:700 .9rem var(--mono);box-shadow:0 10px 26px -8px rgba(var(--gl),.55)}
 
@@ -178,6 +183,7 @@ header.bar{position:sticky;top:0;z-index:10;padding:calc(10px + env(safe-area-in
 /* ====== ISI DUA BARIS INI ====== */
 const API_URL  = 'https://script.google.com/macros/s/AKfycbwJySB8N02Bva2hwi9dKvyecCPuyRaqprhmkXHkJEhiPLduleBL7cMvcr74BL1bY-_ezg/exec';
 const BLOG_URL = 'https://rphonerepair.blogspot.com';
+const PICKUP_DAYS = 60; // batas pengambilan sejak status Selesai (hari)
 /* =============================== */
 
 const $ = s => document.querySelector(s);
@@ -283,6 +289,50 @@ async function load(manual){
   }finally{ busy = false; $('#sync').classList.remove('spin'); }
 }
 
+
+/* ---------- kartu daftar ---------- */
+const ST_COLOR = {'Masuk':'#2196f3','Dicek':'#00bcd4','Menunggu sparepart':'#ffb300','Dikerjakan':'#ff9800','Selesai':'#4caf50','Sudah diambil':'#9c27b0','Batal':'#e53935'};
+const ST_LABEL = {'Sudah diambil':'DIAMBIL','Menunggu sparepart':'SPAREPART'};
+function dayEnd(it, days){
+  const b = new Date(it.selesai||it.update); if(isNaN(b)) return null;
+  const p = b.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).split('-').map(Number);
+  return new Date(Date.UTC(p[0],p[1]-1,p[2]+days,16,59,59));
+}
+const daysLeft = e => e ? Math.ceil((e-Date.now())/864e5) : null;
+function infoLine(it){
+  if(it.status==='Selesai'){
+    const n = daysLeft(dayEnd(it, PICKUP_DAYS)); if(n==null) return '';
+    return n>0 ? '<div class="info warn">Sisa waktu pengambilan: '+n+' hari</div>' : '<div class="info bad">Melewati batas pengambilan</div>';
+  }
+  if(it.status==='Sudah diambil'){
+    const hr = (it.garansi===''||it.garansi==null) ? 0 : Number(it.garansi); if(!hr) return '';
+    const n = daysLeft(dayEnd(it, hr)); if(n==null) return '';
+    return n>0 ? '<div class="info ok">Garansi: Aktif '+n+' hari lagi</div>' : '<div class="info bad">Garansi: Berakhir</div>';
+  }
+  return '';
+}
+const CAL = '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>';
+function cardHtml(i){
+  const c = ST_COLOR[i.status] || '#7f9b8e', dt = new Date(i.masuk);
+  const tgl = isNaN(dt) ? '' : dt.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Jakarta'});
+  return '<div class="card" role="button" tabindex="0" data-id="'+h(i.id)+'" style="--c:'+c+'"><div class="cmain">'+
+    '<div class="t"><span class="id">#'+h(i.id)+'</span><span class="pill">'+h(ST_LABEL[i.status] || String(i.status).toUpperCase())+'</span></div>'+
+    '<div class="n">'+h(i.nama||'(tanpa nama)')+'</div>'+
+    '<div class="d">'+h(i.perangkat)+(i.keluhan?' - '+h(i.keluhan):'')+'</div>'+
+    infoLine(i)+
+    '<div class="u">'+CAL+h(tgl)+'</div></div>'+
+    '<div class="cact"><button type="button" class="ca pesan" data-x="wa" data-id="'+h(i.id)+'">PESAN</button>'+
+    '<button type="button" class="ca struk" data-x="nota" data-id="'+h(i.id)+'">STRUK</button>'+
+    (i.status==='Selesai' ? '<button type="button" class="ca ingat" data-x="remind" data-id="'+h(i.id)+'">INGATKAN</button>' : '')+
+    '</div></div>';
+}
+function remindLink(it){
+  const n = daysLeft(dayEnd(it, PICKUP_DAYS));
+  const t = 'Halo '+(it.nama||'')+', '+(it.perangkat||'HP')+' Anda (ID '+it.id+') sudah selesai dan belum diambil.'+
+    (n>0 ? ' Sisa waktu pengambilan '+n+' hari.' : '')+' Mohon segera diambil ya, terima kasih.\n'+((typeof SHOP!=='undefined'&&SHOP.nama)||'');
+  return 'https://wa.me/'+waNum(it.hp)+'?text='+encodeURIComponent(t);
+}
+
 /* ---------- render ---------- */
 function renderChips(){
   const all = ['Semua'].concat(statuses);
@@ -299,11 +349,7 @@ function render(){
     (!filter || i.status === filter) &&
     (!q || [i.id,i.nama,i.perangkat,i.hp,i.keluhan].join(' ').toLowerCase().includes(q)));
   $('#cnt').textContent = rows.length === items.length ? items.length : rows.length + '/' + items.length;
-  $('#list').innerHTML = rows.length ? rows.map(i =>
-    '<button class="card" data-id="'+h(i.id)+'"><div class="t"><span class="id">'+h(i.id)+'</span><span class="badge '+tone(i.status)+'">'+h(i.status)+'</span></div>'+
-    '<div class="n">'+h(i.nama||'(tanpa nama)')+'</div>'+
-    '<div class="d">'+h(i.perangkat)+(i.keluhan?' - '+h(i.keluhan):'')+'</div>'+
-    '<div class="u">Masuk '+h(fdt(i.masuk))+' &middot; Update '+h(rel(i.update))+'</div></button>').join('')
+  $('#list').innerHTML = rows.length ? rows.map(cardHtml).join('')
     : '<div class="empty">'+(items.length ? 'Tidak ada servis yang cocok.' : 'Belum ada servis. Tekan "Servis baru" untuk mulai.')+'</div>';
 }
 
@@ -366,7 +412,7 @@ async function guarded(btn, fn){
 
 /* ---------- events ---------- */
 document.addEventListener('click', ev => {
-  const t = ev.target.closest('button,[data-x]'); if(!t) return;
+  const t = ev.target.closest('button,[data-x],.card'); if(!t) return;
   if(t.id==='fab') return newSheet();
   if(t.id==='sync') return load(true);
   if(t.id==='out') return logout('');
@@ -413,6 +459,11 @@ document.addEventListener('click', ev => {
     catch(e){ toast('Tersimpan di HP ini, belum tersinkron ke server', true); }
   });
   if(x==='nota') return guarded(t, ()=>sendNota(items.find(i=>i.id===t.dataset.id)));
+  if(x==='wa'||x==='remind'){
+    const it = items.find(i=>i.id===t.dataset.id); if(!it) return;
+    if(digits(it.hp).length < 8) return toast('Nomor HP pelanggan belum valid', true);
+    return void window.open(x==='wa' ? waLink(it) : remindLink(it), '_blank');
+  }
   if(x==='save') return guarded(t, async()=>{
     const id = t.dataset.id;
     const j = await api({action:'update', id, fields:{
@@ -643,7 +694,7 @@ document.addEventListener('change', e => {
   if(e.target.id==='f-perangkat' || e.target.id==='f-keluhan') bsug();
 });
 $('#ov').addEventListener('click', e => { if(e.target.id==='ov') closeSheet(); });
-document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('#ov').hidden) closeSheet(); });
+document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('#ov').hidden) closeSheet(); if((e.key==='Enter'||e.key===' ') && e.target.classList && e.target.classList.contains('card')){ e.preventDefault(); editSheet(e.target.dataset.id); } });
 $('#q').addEventListener('input', e => { query = e.target.value; render(); });
 window.addEventListener('online', () => load());
 window.addEventListener('offline', () => $('#net').hidden = false);
