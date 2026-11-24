@@ -237,7 +237,7 @@ const DEF_TPL = {
 const TPL_FALLBACK = 'Halo {nama}, servis {perangkat} Anda (ID {id}) statusnya: {status}.';
 const TPL_TAIL = '\nCek status servis kapan saja, tinggal klik (tanpa isi ID): {link}\n{toko}';
 function tplOf(st){ return ((typeof SHOP!=='undefined' && SHOP.tpl) || {})[st] || DEF_TPL[st] || TPL_FALLBACK; }
-function cekLink(it){ const k = digits(it.hp).slice(-4); return BLOG_URL + '/?id=' + encodeURIComponent(it.id) + (k.length===4 ? '&k='+k : ''); }
+function cekLink(it){ const k = digits(it.hp).slice(-4), n = String(Number(digits(it.id))||''); return BLOG_URL + '/?c=' + n + (k.length===4 ? '-'+k : ''); } /* contoh: /?c=1-1234 */
 function waText(it){
   const v = {nama:it.nama||'', id:it.id, perangkat:it.perangkat||'HP', status:it.status, biaya:rp(it.biaya)||'-', link:cekLink(it), toko:(typeof SHOP!=='undefined'&&SHOP.nama)||''};
   const fill = t => t.replace(/\{(\w+)\}/g, (m,k)=> k in v ? v[k] : m);
